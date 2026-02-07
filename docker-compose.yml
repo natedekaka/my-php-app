@@ -1,0 +1,44 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www/html:Z
+    depends_on:
+      - db
+    networks:
+      - appnet
+
+  db:
+    image: docker.io/library/mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: myapp
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql:Z
+    networks:
+      - appnet
+
+  phpmyadmin:
+    image: docker.io/library/phpmyadmin:latest
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_ARBITRARY: 1
+    depends_on:
+      - db
+    networks:
+      - appnet
+
+volumes:
+  dbdata:
+
+networks:
+  appnet:
+    driver: bridge
