@@ -55,14 +55,19 @@ my-php-app/
    cd my-php-app
    ```
 
-2. Jalankan container:
+2. Clone aplikasi absensi-siswa:
+   ```bash
+   git clone https://github.com/natedekaka/absensi-siswa.git src/absensi-siswa
+   ```
+
+3. Jalankan container:
    ```bash
    docker-compose up -d
    ```
 
-3. Tunggu beberapa saat hingga semua container berjalan
+4. Tunggu beberapa saat hingga semua container berjalan
 
-4. Buka browser:
+5. Buka browser:
    - **Aplikasi**: http://localhost:8082/absensi-siswa
    - **phpMyAdmin**: http://localhost:8083
      - Server: db
@@ -70,7 +75,7 @@ my-php-app/
      - Password: pass123
      - Database: myapp
 
-5. Login dengan akun default:
+6. Login dengan akun default:
    | Username | Password |
    |----------|----------|
    | admin | (password yang dibuat saat install)
@@ -82,17 +87,23 @@ my-php-app/
    git clone https://github.com/natedekaka/my-php-app.git
    ```
 
-2. Buat database baru (nama bebas, contoh: `absensi_siswa`):
+2. Clone aplikasi absensi-siswa:
+   ```bash
+   cd my-php-app
+   git clone https://github.com/natedekaka/absensi-siswa.git src/absensi-siswa
+   ```
+
+3. Buat database baru (nama bebas, contoh: `absensi_siswa`):
    ```sql
    CREATE DATABASE absensi_siswa CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 
-3. Import database:
+4. Import database:
    ```bash
    mysql -u root -p absensi_siswa < database.sql
    ```
 
-4. Edit konfigurasi database di `src/absensi-siswa/config.php`:
+5. Edit konfigurasi database di `src/absensi-siswa/config.php`:
    ```php
    $host = 'localhost'; 
    $user = 'root'; 
@@ -100,7 +111,7 @@ my-php-app/
    $db   = 'absensi_siswa';
    ```
 
-5. Buka browser: http://localhost/my-php-app/src/absensi-siswa
+6. Buka browser: http://localhost/my-php-app/src/absensi-siswa
 
 ## Akun Default
 
