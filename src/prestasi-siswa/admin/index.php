@@ -428,7 +428,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditPrestasi(<?= $p['id'] ?>, <?= $p['siswa_id'] ?>, '<?= htmlspecialchars($p['nama_siswa'].' - '.$p['kelas']) ?>', '<?= htmlspecialchars($p['nama_lomba']) ?>', '<?= $p['jenis_prestasi'] ?>', '<?= $p['jenis_peserta'] ?>', '<?= htmlspecialchars($p['nama_tim'] ?? '') ?>', '<?= $p['tingkat'] ?>', '<?= $p['peringkat'] ?>', '<?= $p['tanggal'] ?>', '<?= htmlspecialchars($p['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($p['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button onclick="openEditPrestasi(<?= $p['id'] ?>, <?= $p['siswa_id'] ?>, '<?= addslashes($p['nama_siswa'].' - '.$p['kelas']) ?>', '<?= addslashes($p['nama_lomba']) ?>', '<?= $p['jenis_prestasi'] ?>', '<?= $p['jenis_peserta'] ?>', '<?= addslashes($p['nama_tim'] ?? '') ?>', '<?= $p['tingkat'] ?>', '<?= $p['peringkat'] ?>', '<?= $p['tanggal'] ?>', '<?= addslashes($p['penyelenggara'] ?? '') ?>', '<?= addslashes($p['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
