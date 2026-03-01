@@ -418,8 +418,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php while ($p = $prestasis->fetch_assoc()): ?>
                             <tr class="border-t">
                                 <td class="px-4 py-3">
-                                    <div class="font-medium"><?= htmlspecialchars($p['nama_siswa']) ?></div>
-                                    <div class="text-sm text-gray-500"><?= htmlspecialchars($p['kelas']) ?></div>
+                                    <?php if ($p['jenis_peserta'] === 'kelompok'): ?>
+                                    <div class="font-medium"><?= htmlspecialchars($p['nama_tim'] ?? 'Tim') ?></div>
+                                    <div class="text-sm text-gray-500">Kelompok/Tim</div>
+                                    <?php else: ?>
+                                    <div class="font-medium"><?= htmlspecialchars($p['nama_siswa'] ?? '') ?></div>
+                                    <div class="text-sm text-gray-500"><?= htmlspecialchars($p['kelas'] ?? '') ?></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3"><?= htmlspecialchars($p['nama_lomba']) ?></td>
                                 <td class="px-4 py-3 text-center">
@@ -439,7 +444,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button type="button" onclick="openEditPrestasi(<?= $p['id'] ?>, <?= $p['siswa_id'] ?>, '<?= addslashes($p['nama_siswa'].' - '.$p['kelas']) ?>', '<?= addslashes($p['nama_lomba']) ?>', '<?= $p['jenis_prestasi'] ?>', '<?= $p['jenis_peserta'] ?>', '<?= addslashes($p['nama_tim'] ?? '') ?>', '<?= $p['tingkat'] ?>', '<?= $p['peringkat'] ?>', '<?= $p['tanggal'] ?>', '<?= addslashes($p['penyelenggara'] ?? '') ?>', '<?= addslashes($p['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" class="text-blue-500 hover:text-blue-700 mr-2 btn-edit-prestasi" data-id="<?= $p['id'] ?>" data-siswa_id="<?= $p['siswa_id'] ?>" data-nama_siswa="<?= htmlspecialchars($p['nama_siswa'] ?? '') ?>" data-kelas="<?= htmlspecialchars($p['kelas'] ?? '') ?>" data-nama_lomba="<?= htmlspecialchars($p['nama_lomba']) ?>" data-jenis_prestasi="<?= $p['jenis_prestasi'] ?>" data-jenis_peserta="<?= $p['jenis_peserta'] ?>" data-nama_tim="<?= htmlspecialchars($p['nama_tim'] ?? '') ?>" data-tingkat="<?= $p['tingkat'] ?>" data-peringkat="<?= $p['peringkat'] ?>" data-tanggal="<?= $p['tanggal'] ?>" data-penyelenggara="<?= htmlspecialchars($p['penyelenggara'] ?? '') ?>" data-deskripsi="<?= htmlspecialchars($p['deskripsi'] ?? '') ?>">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
@@ -1742,6 +1747,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 namaPerusahaan.removeAttribute('required');
             }
         }
+
+        document.querySelectorAll('.btn-edit-prestasi').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const data = this.dataset;
+                const namaSiswa = data.jenisPeserta === 'kelompok' ? (data.namaTim || 'Tim') : (data.namaSiswa + ' - ' + data.kelas);
+                
+                document.getElementById('edit_prestasi_id').value = data.id;
+                document.getElementById('edit_prestasi_siswa_id').value = data.siswaId || '';
+                document.getElementById('edit_siswa_search').value = namaSiswa;
+                document.getElementById('edit_prestasi_nama_lomba').value = data.namaLomba;
+                document.getElementById('edit_prestasi_jenis').value = data.jenisPrestasi;
+                document.getElementById('edit_jenis_peserta').value = data.jenisPeserta;
+                document.getElementById('edit_prestasi_nama_tim').value = data.namaTim || '';
+                document.getElementById('edit_prestasi_tingkat').value = data.tingkat;
+                document.getElementById('edit_prestasi_peringkat').value = data.peringkat;
+                document.getElementById('edit_prestasi_tanggal').value = data.tanggal;
+                document.getElementById('edit_prestasi_penyelenggara').value = data.penyelenggara || '';
+                document.getElementById('edit_prestasi_deskripsi').value = data.deskripsi || '';
+                
+                toggleEditTimField();
+                showModal('modal-edit-prestasi');
+            });
+        });
     </script>
 </body>
 </html>
