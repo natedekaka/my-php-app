@@ -131,7 +131,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if ($action === 'add_prestasi') {
-        $siswa_id = $_POST['siswa_id'];
+        $jenis_peserta = $_POST['jenis_peserta'];
+        
+        if ($jenis_peserta === 'kelompok') {
+            $siswa_id = null;
+        } else {
+            $siswa_id = $_POST['siswa_id'] ? (int)$_POST['siswa_id'] : null;
+        }
+        
         $nama_lomba = $_POST['nama_lomba'];
         $jenis = $_POST['jenis_prestasi'];
         $tingkat = $_POST['tingkat'];
@@ -154,11 +161,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        $jenis_peserta = $_POST['jenis_peserta'];
         $nama_tim = $_POST['nama_tim'] ?? null;
         
-        $stmt = $db->prepare("INSERT INTO prestasi (siswa_id, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, Penyelenggara, foto_sertifikat, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("issssssssss", $siswa_id, $nama_lomba, $jenis, $jenis_peserta, $nama_tim, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_sertifikat, $deskripsi);
+        if ($siswa_id === null) {
+            $stmt = $db->prepare("INSERT INTO prestasi (siswa_id, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, Penyelenggara, foto_sertifikat, deskripsi) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssssssssss", $nama_lomba, $jenis, $jenis_peserta, $nama_tim, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_sertifikat, $deskripsi);
+        } else {
+            $stmt = $db->prepare("INSERT INTO prestasi (siswa_id, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, Penyelenggara, foto_sertifikat, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("issssssssss", $siswa_id, $nama_lomba, $jenis, $jenis_peserta, $nama_tim, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_sertifikat, $deskripsi);
+        }
         $stmt->execute();
         header('Location: index.php');
         exit;

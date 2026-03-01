@@ -84,7 +84,7 @@ CREATE TABLE `lomb` (
 
 CREATE TABLE `prestasi` (
   `id` int NOT NULL,
-  `siswa_id` int NOT NULL,
+  `siswa_id` int DEFAULT NULL,
   `nama_lomba` varchar(255) NOT NULL,
   `jenis_prestasi` enum('akademik','non-akademik') NOT NULL,
   `jenis_peserta` enum('perorangan','kelompok') DEFAULT 'perorangan',
