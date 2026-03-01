@@ -11,7 +11,7 @@ $db = getDB();
 
 // Get data for tabs
 $siswa = $db->query("SELECT * FROM siswa ORDER BY nama_siswa");
-$prestasis = $db->query("SELECT p.*, s.nama_siswa, s.kelas FROM prestasi p JOIN siswa s ON p.siswa_id = s.id ORDER BY p.created_at DESC");
+$prestasis = $db->query("SELECT p.*, s.nama_siswa, s.kelas FROM prestasi p LEFT JOIN siswa s ON p.siswa_id = s.id ORDER BY p.created_at DESC");
 $guru = $db->query("SELECT * FROM guru ORDER BY nama_guru");
 
 // Get stats
@@ -375,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditSiswa(<?= $s['id'] ?>, '<?= htmlspecialchars($s['nis'] ?? '') ?>', '<?= htmlspecialchars($s['nama_siswa']) ?>', '<?= htmlspecialchars($s['kelas']) ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" onclick="openEditSiswa(<?= $s['id'] ?>, '<?= htmlspecialchars($s['nis'] ?? '') ?>', '<?= htmlspecialchars($s['nama_siswa']) ?>', '<?= htmlspecialchars($s['kelas']) ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus? Data prestasi siswa ini juga akan dihapus.')">
@@ -492,7 +492,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditGuru(<?= $g['id'] ?>, '<?= htmlspecialchars($g['nip'] ?? '') ?>', '<?= htmlspecialchars($g['nama_guru']) ?>', '<?= htmlspecialchars($g['mapel'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" onclick="openEditGuru(<?= $g['id'] ?>, '<?= htmlspecialchars($g['nip'] ?? '') ?>', '<?= htmlspecialchars($g['nama_guru']) ?>', '<?= htmlspecialchars($g['mapel'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus? Data prestasi guru ini juga akan dihapus.')">
@@ -553,7 +553,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditPrestasiGuru(<?= $pg['id'] ?>, <?= $pg['guru_id'] ?>, '<?= htmlspecialchars($pg['nama_lomba']) ?>', '<?= $pg['jenis_prestasi'] ?>', '<?= $pg['tingkat'] ?>', '<?= $pg['peringkat'] ?>', '<?= $pg['tanggal'] ?>', '<?= htmlspecialchars($pg['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($pg['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" onclick="openEditPrestasiGuru(<?= $pg['id'] ?>, <?= $pg['guru_id'] ?>, '<?= htmlspecialchars($pg['nama_lomba']) ?>', '<?= $pg['jenis_prestasi'] ?>', '<?= $pg['tingkat'] ?>', '<?= $pg['peringkat'] ?>', '<?= $pg['tanggal'] ?>', '<?= htmlspecialchars($pg['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($pg['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
@@ -607,7 +607,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </td>
                                 <td class="px-4 py-3 text-center"><?= date('d/m/Y', strtotime($ps['tanggal'])) ?></td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditPrestasiSekolah(<?= $ps['id'] ?>, '<?= htmlspecialchars($ps['nama_prestasi']) ?>', '<?= htmlspecialchars($ps['kategori'] ?? '') ?>', '<?= $ps['tingkat'] ?>', '<?= $ps['peringkat'] ?>', '<?= $ps['tanggal'] ?>', '<?= htmlspecialchars($ps['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($ps['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" onclick="openEditPrestasiSekolah(<?= $ps['id'] ?>, '<?= htmlspecialchars($ps['nama_prestasi']) ?>', '<?= htmlspecialchars($ps['kategori'] ?? '') ?>', '<?= $ps['tingkat'] ?>', '<?= $ps['peringkat'] ?>', '<?= $ps['tanggal'] ?>', '<?= htmlspecialchars($ps['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($ps['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
@@ -667,7 +667,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <td class="px-4 py-3"><?= htmlspecialchars($alumni['prodi'] ?? '-') ?></td>
                                 <td class="px-4 py-3 text-center"><?= htmlspecialchars($alumni['tahun_ajaran']) ?></td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditAlumni(<?= $alumni['id'] ?>, <?= $alumni['siswa_id'] ?>, '<?= htmlspecialchars($alumni['nama_siswa'].' - '.$alumni['kelas']) ?>', '<?= $alumni['jenis'] ?>', '<?= htmlspecialchars($alumni['nama_perguruan'] ?? '') ?>', '<?= htmlspecialchars($alumni['nama_perusahaan'] ?? '') ?>', '<?= htmlspecialchars($alumni['fakultas'] ?? '') ?>', '<?= htmlspecialchars($alumni['prodi'] ?? '') ?>', '<?= htmlspecialchars($alumni['tahun_ajaran'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" onclick="openEditAlumni(<?= $alumni['id'] ?>, <?= $alumni['siswa_id'] ?>, '<?= htmlspecialchars($alumni['nama_siswa'].' - '.$alumni['kelas']) ?>', '<?= $alumni['jenis'] ?>', '<?= htmlspecialchars($alumni['nama_perguruan'] ?? '') ?>', '<?= htmlspecialchars($alumni['nama_perusahaan'] ?? '') ?>', '<?= htmlspecialchars($alumni['fakultas'] ?? '') ?>', '<?= htmlspecialchars($alumni['prodi'] ?? '') ?>', '<?= htmlspecialchars($alumni['tahun_ajaran'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
