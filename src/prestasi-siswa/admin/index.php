@@ -86,6 +86,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    if ($action === 'edit_prestasi') {
+        $id = (int)$_POST['id'];
+        $siswa_id = (int)$_POST['siswa_id'];
+        $nama_lomba = $_POST['nama_lomba'];
+        $jenis_prestasi = $_POST['jenis_prestasi'];
+        $jenis_peserta = $_POST['jenis_peserta'];
+        $nama_tim = $_POST['nama_tim'] ?? null;
+        $tingkat = $_POST['tingkat'];
+        $peringkat = $_POST['peringkat'];
+        $tanggal = $_POST['tanggal'];
+        $penyelenggara = $_POST['penyelenggara'] ?? '';
+        $deskripsi = $_POST['deskripsi'] ?? '';
+        
+        $stmt = $db->prepare("UPDATE prestasi SET siswa_id = ?, nama_lomba = ?, jenis_prestasi = ?, jenis_peserta = ?, nama_tim = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
+        $stmt->bind_param("isssssssssi", $siswa_id, $nama_lomba, $jenis_prestasi, $jenis_peserta, $nama_tim, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
     if ($action === 'add_siswa') {
         $nis = $_POST['nis'];
         $nama = $_POST['nama_siswa'];
@@ -408,7 +428,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button onclick="openEditPrestasi(<?= $p['id'] ?>, <?= $p['siswa_id'] ?>, '<?= htmlspecialchars($p['nama_lomba']) ?>', '<?= $p['jenis_prestasi'] ?>', '<?= $p['jenis_peserta'] ?>', '<?= htmlspecialchars($p['nama_tim'] ?? '') ?>', '<?= $p['tingkat'] ?>', '<?= $p['peringkat'] ?>', '<?= $p['tanggal'] ?>', '<?= htmlspecialchars($p['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($p['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button onclick="openEditPrestasi(<?= $p['id'] ?>, <?= $p['siswa_id'] ?>, '<?= htmlspecialchars($p['nama_siswa'].' - '.$p['kelas']) ?>', '<?= htmlspecialchars($p['nama_lomba']) ?>', '<?= $p['jenis_prestasi'] ?>', '<?= $p['jenis_peserta'] ?>', '<?= htmlspecialchars($p['nama_tim'] ?? '') ?>', '<?= $p['tingkat'] ?>', '<?= $p['peringkat'] ?>', '<?= $p['tanggal'] ?>', '<?= htmlspecialchars($p['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($p['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
@@ -1235,13 +1255,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div id="edit_siswa_field">
                         <label class="block text-sm font-medium mb-1">Siswa</label>
-                        <select name="siswa_id" id="edit_prestasi_siswa_id" class="w-full px-3 py-2 border rounded-lg">
+                        <input type="text" name="edit_siswa_search" id="edit_siswa_search" class="w-full px-3 py-2 border rounded-lg" placeholder="Cari nama siswa..." list="edit_siswa_list" autocomplete="off">
+                        <datalist id="edit_siswa_list">
                             <?php 
                             $siswa->data_seek(0);
                             while ($s = $siswa->fetch_assoc()): ?>
-                            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
+                            <option value="<?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?>" data-id="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
                             <?php endwhile; ?>
-                        </select>
+                        </datalist>
+                        <input type="hidden" name="siswa_id" id="edit_prestasi_siswa_id">
+                        <script>
+                            document.getElementById('edit_siswa_search').addEventListener('input', function() {
+                                const options = document.querySelectorAll('#edit_siswa_list option');
+                                const value = this.value;
+                                let found = false;
+                                options.forEach(option => {
+                                    if (option.value === value) {
+                                        document.getElementById('edit_prestasi_siswa_id').value = option.getAttribute('data-id');
+                                        found = true;
+                                    }
+                                });
+                                if (!found) {
+                                    document.getElementById('edit_prestasi_siswa_id').value = '';
+                                }
+                            });
+                        </script>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Nama Lomba</label>
@@ -1608,9 +1646,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('edit_prodi_field').classList.toggle('hidden', jenis === 'kerja');
         }
 
-        function openEditPrestasi(id, siswa_id, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, penyelenga, deskripsi) {
+        function openEditPrestasi(id, siswa_id, nama_siswa, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, penyelenga, deskripsi) {
             document.getElementById('edit_prestasi_id').value = id;
             document.getElementById('edit_prestasi_siswa_id').value = siswa_id;
+            document.getElementById('edit_siswa_search').value = nama_siswa;
             document.getElementById('edit_prestasi_nama_lomba').value = nama_lomba;
             document.getElementById('edit_prestasi_jenis').value = jenis_prestasi;
             document.getElementById('edit_jenis_peserta').value = jenis_peserta;
@@ -1618,7 +1657,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('edit_prestasi_tingkat').value = tingkat;
             document.getElementById('edit_prestasi_peringkat').value = peringkat;
             document.getElementById('edit_prestasi_tanggal').value = tanggal;
-            document.getElementById('edit_prestasi_penyelenggara').value = penyelenggara;
+            document.getElementById('edit_prestasi_penyelenggara').value = penyelenga;
             document.getElementById('edit_prestasi_deskripsi').value = deskripsi;
             
             toggleEditTimField();
