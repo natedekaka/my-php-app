@@ -46,7 +46,7 @@ if ($tahun) {
 
 $sql = "SELECT p.*, s.nama_siswa, s.kelas, s.nis 
         FROM prestasi p 
-        JOIN siswa s ON p.siswa_id = s.id 
+        LEFT JOIN siswa s ON p.siswa_id = s.id 
         $where 
         ORDER BY p.tanggal DESC, p.tingkat ASC 
         LIMIT ? OFFSET ?";

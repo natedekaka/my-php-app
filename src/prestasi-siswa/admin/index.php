@@ -9,6 +9,10 @@ if (!isLoggedIn()) {
 
 $db = getDB();
 
+$db->query("ALTER TABLE prestasi MODIFY COLUMN peringkat VARCHAR(20)");
+$db->query("ALTER TABLE prestasi_guru MODIFY COLUMN peringkat VARCHAR(20)");
+$db->query("ALTER TABLE prestasi_sekolah MODIFY COLUMN peringkat VARCHAR(20)");
+
 // Get data for tabs
 $siswa = $db->query("SELECT * FROM siswa ORDER BY nama_siswa");
 $prestasis = $db->query("SELECT p.*, s.nama_siswa, s.kelas FROM prestasi p LEFT JOIN siswa s ON p.siswa_id = s.id ORDER BY p.created_at DESC");
@@ -102,6 +106,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare("UPDATE prestasi SET siswa_id = ?, nama_lomba = ?, jenis_prestasi = ?, jenis_peserta = ?, nama_tim = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
         $stmt->bind_param("isssssssssi", $siswa_id, $nama_lomba, $jenis_prestasi, $jenis_peserta, $nama_tim, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
         $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'delete_prestasi') {
+        $id = (int)$_POST['id'];
+        $db->query("DELETE FROM prestasi WHERE id = $id");
         header('Location: index.php');
         exit;
     }
@@ -204,6 +215,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php');
         exit;
     }
+    
+    if ($action === 'add_prestasi_guru') {
+        $guru_id = (int)$_POST['guru_id'];
+        $nama_lomba = $_POST['nama_lomba'];
+        $jenis_prestasi = $_POST['jenis_prestasi'];
+        $tingkat = $_POST['tingkat'];
+        $peringkat = $_POST['peringkat'];
+        $tanggal = $_POST['tanggal'];
+        $penyelenggara = $_POST['penyelenggara'] ?? '';
+        $deskripsi = $_POST['deskripsi'] ?? '';
+        
+        $stmt = $db->prepare("INSERT INTO prestasi_guru (guru_id, nama_lomba, jenis_prestasi, tingkat, peringkat, tanggal, Penyelenggara, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("isssssss", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'edit_prestasi_guru') {
+        $id = (int)$_POST['id'];
+        $guru_id = (int)$_POST['guru_id'];
+        $nama_lomba = $_POST['nama_lomba'];
+        $jenis_prestasi = $_POST['jenis_prestasi'];
+        $tingkat = $_POST['tingkat'];
+        $peringkat = $_POST['peringkat'];
+        $tanggal = $_POST['tanggal'];
+        $penyelenggara = $_POST['penyelenggara'] ?? '';
+        $deskripsi = $_POST['deskripsi'] ?? '';
+        
+        $stmt = $db->prepare("UPDATE prestasi_guru SET guru_id = ?, nama_lomba = ?, jenis_prestasi = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
+        $stmt->bind_param("isssssssi", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'delete_prestasi_guru') {
+        $id = (int)$_POST['id'];
+        $db->query("DELETE FROM prestasi_guru WHERE id = $id");
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'add_prestasi_sekolah') {
+        $nama_prestasi = $_POST['nama_prestasi'];
+        $kategori = $_POST['kategori'];
+        $tingkat = $_POST['tingkat'];
+        $peringkat = $_POST['peringkat'];
+        $tanggal = $_POST['tanggal'];
+        $penyelenggara = $_POST['penyelenggara'] ?? '';
+        $deskripsi = $_POST['deskripsi'] ?? '';
+        
+        $stmt = $db->prepare("INSERT INTO prestasi_sekolah (nama_prestasi, kategori, tingkat, peringkat, tanggal, Penyelenggara, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssssss", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'edit_prestasi_sekolah') {
+        $id = (int)$_POST['id'];
+        $nama_prestasi = $_POST['nama_prestasi'];
+        $kategori = $_POST['kategori'];
+        $tingkat = $_POST['tingkat'];
+        $peringkat = $_POST['peringkat'];
+        $tanggal = $_POST['tanggal'];
+        $penyelenggara = $_POST['penyelenggara'] ?? '';
+        $deskripsi = $_POST['deskripsi'] ?? '';
+        
+        $stmt = $db->prepare("UPDATE prestasi_sekolah SET nama_prestasi = ?, kategori = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
+        $stmt->bind_param("sssssssi", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'delete_prestasi_sekolah') {
+        $id = (int)$_POST['id'];
+        $db->query("DELETE FROM prestasi_sekolah WHERE id = $id");
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'delete_alumni_ptn') {
+        $id = (int)$_POST['id'];
+        $db->query("DELETE FROM alumni_ptn WHERE id = $id");
+        header('Location: index.php');
+        exit;
+    }
 }
 ?>
 
@@ -247,6 +347,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </nav>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div id="modal-konfirmasi-hapus" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md transform transition-all scale-100">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Konfirmasi Hapus</h3>
+                <p id="deleteConfirmMessage" class="text-gray-600 mb-6">Apakah Anda yakin ingin menghapus data ini?</p>
+                <div class="flex gap-3 justify-center">
+                    <button onclick="hideDeleteConfirm()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                        Batal
+                    </button>
+                    <button onclick="confirmDelete()" class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center">
+                        <i class="fas fa-trash mr-2"></i> Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Stats -->
@@ -378,10 +499,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button type="button" onclick="openEditSiswa(<?= $s['id'] ?>, '<?= htmlspecialchars($s['nis'] ?? '') ?>', '<?= htmlspecialchars($s['nama_siswa']) ?>', '<?= htmlspecialchars($s['kelas']) ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus? Data prestasi siswa ini juga akan dihapus.')">
+                                    <form method="POST" class="inline" id="delete-form-siswa-<?= $s['id'] ?>">
                                         <input type="hidden" name="action" value="delete_siswa">
                                         <input type="hidden" name="id" value="<?= $s['id'] ?>">
-                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                        <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-siswa-<?= $s['id'] ?>'), 'Yakin hapus? Data prestasi siswa ini juga akan dihapus.')" class="text-red-500 hover:text-red-700">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -444,13 +565,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button type="button" class="text-blue-500 hover:text-blue-700 mr-2 btn-edit-prestasi" data-id="<?= $p['id'] ?>" data-siswa_id="<?= $p['siswa_id'] ?>" data-nama_siswa="<?= htmlspecialchars($p['nama_siswa'] ?? '') ?>" data-kelas="<?= htmlspecialchars($p['kelas'] ?? '') ?>" data-nama_lomba="<?= htmlspecialchars($p['nama_lomba']) ?>" data-jenis_prestasi="<?= $p['jenis_prestasi'] ?>" data-jenis_peserta="<?= $p['jenis_peserta'] ?>" data-nama_tim="<?= htmlspecialchars($p['nama_tim'] ?? '') ?>" data-tingkat="<?= $p['tingkat'] ?>" data-peringkat="<?= $p['peringkat'] ?>" data-tanggal="<?= $p['tanggal'] ?>" data-penyelenggara="<?= htmlspecialchars($p['penyelenggara'] ?? '') ?>" data-deskripsi="<?= htmlspecialchars($p['deskripsi'] ?? '') ?>">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
+                                    <form method="POST" class="inline" id="delete-form-prestasi-<?= $p['id'] ?>">
                                         <input type="hidden" name="action" value="delete_prestasi">
                                         <input type="hidden" name="id" value="<?= $p['id'] ?>">
-                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                        <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-prestasi-<?= $p['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -500,10 +618,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button type="button" onclick="openEditGuru(<?= $g['id'] ?>, '<?= htmlspecialchars($g['nip'] ?? '') ?>', '<?= htmlspecialchars($g['nama_guru']) ?>', '<?= htmlspecialchars($g['mapel'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus? Data prestasi guru ini juga akan dihapus.')">
+                                    <form method="POST" class="inline" id="delete-form-guru-<?= $g['id'] ?>">
                                         <input type="hidden" name="action" value="delete_guru">
                                         <input type="hidden" name="id" value="<?= $g['id'] ?>">
-                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                        <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-guru-<?= $g['id'] ?>'), 'Yakin hapus? Data prestasi guru ini juga akan dihapus.')" class="text-red-500 hover:text-red-700">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -561,10 +679,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button type="button" onclick="openEditPrestasiGuru(<?= $pg['id'] ?>, <?= $pg['guru_id'] ?>, '<?= htmlspecialchars($pg['nama_lomba']) ?>', '<?= $pg['jenis_prestasi'] ?>', '<?= $pg['tingkat'] ?>', '<?= $pg['peringkat'] ?>', '<?= $pg['tanggal'] ?>', '<?= htmlspecialchars($pg['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($pg['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
+                                    <form method="POST" class="inline" id="delete-form-prestasi-guru-<?= $pg['id'] ?>">
                                         <input type="hidden" name="action" value="delete_prestasi_guru">
                                         <input type="hidden" name="id" value="<?= $pg['id'] ?>">
-                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                        <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-prestasi-guru-<?= $pg['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -615,10 +733,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button type="button" onclick="openEditPrestasiSekolah(<?= $ps['id'] ?>, '<?= htmlspecialchars($ps['nama_prestasi']) ?>', '<?= htmlspecialchars($ps['kategori'] ?? '') ?>', '<?= $ps['tingkat'] ?>', '<?= $ps['peringkat'] ?>', '<?= $ps['tanggal'] ?>', '<?= htmlspecialchars($ps['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($ps['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
+                                    <form method="POST" class="inline" id="delete-form-prestasi-sekolah-<?= $ps['id'] ?>">
                                         <input type="hidden" name="action" value="delete_prestasi_sekolah">
                                         <input type="hidden" name="id" value="<?= $ps['id'] ?>">
-                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                        <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-prestasi-sekolah-<?= $ps['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -675,10 +793,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button type="button" onclick="openEditAlumni(<?= $alumni['id'] ?>, <?= $alumni['siswa_id'] ?>, '<?= htmlspecialchars($alumni['nama_siswa'].' - '.$alumni['kelas']) ?>', '<?= $alumni['jenis'] ?>', '<?= htmlspecialchars($alumni['nama_perguruan'] ?? '') ?>', '<?= htmlspecialchars($alumni['nama_perusahaan'] ?? '') ?>', '<?= htmlspecialchars($alumni['fakultas'] ?? '') ?>', '<?= htmlspecialchars($alumni['prodi'] ?? '') ?>', '<?= htmlspecialchars($alumni['tahun_ajaran'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
+                                    <form method="POST" class="inline" id="delete-form-alumni-<?= $alumni['id'] ?>">
                                         <input type="hidden" name="action" value="delete_alumni_ptn">
                                         <input type="hidden" name="id" value="<?= $alumni['id'] ?>">
-                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                        <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-alumni-<?= $alumni['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -777,7 +895,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Jenis Prestasi</label>
-                        <select name="jenis_prestasi" id="jenis_prestasi" required class="w-full px-3 py-2 border rounded-lg" onchange="handleJenisPrestasi()">
+                        <select name="jenis_prestasi" id="jenis_prestasi" required class="w-full px-3 py-2 border rounded-lg">
                             <option value="akademik">Akademik</option>
                             <option value="non-akademik">Non-Akademik</option>
                         </select>
@@ -799,6 +917,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <option value="1">Juara 1</option>
                             <option value="2">Juara 2</option>
                             <option value="3">Juara 3</option>
+                            <option value="emas">Medali Emas</option>
+                            <option value="perak">Medali Perak</option>
+                            <option value="perunggu">Medali Perunggu</option>
                             <option value="harapan">Harapan</option>
                             <option value="finalis">Finalis</option>
                             <option value="peserta">Peserta</option>
@@ -926,6 +1047,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <option value="1">Juara 1</option>
                             <option value="2">Juara 2</option>
                             <option value="3">Juara 3</option>
+                            <option value="emas">Medali Emas</option>
+                            <option value="perak">Medali Perak</option>
+                            <option value="perunggu">Medali Perunggu</option>
                             <option value="harapan">Harapan</option>
                             <option value="finalis">Finalis</option>
                             <option value="peserta">Peserta</option>
@@ -1497,6 +1621,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
+        // Delete Confirmation Modal
+        let deleteForm = null;
+        let deleteMessage = '';
+        
+        function showDeleteConfirm(form, message) {
+            deleteForm = form;
+            deleteMessage = message;
+            document.getElementById('deleteConfirmMessage').textContent = message;
+            document.getElementById('modal-konfirmasi-hapus').classList.remove('hidden');
+        }
+        
+        function hideDeleteConfirm() {
+            document.getElementById('modal-konfirmasi-hapus').classList.add('hidden');
+            deleteForm = null;
+        }
+        
+        function confirmDelete() {
+            if (deleteForm) {
+                deleteForm.submit();
+            }
+        }
+
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-' + tabName).classList.remove('hidden');

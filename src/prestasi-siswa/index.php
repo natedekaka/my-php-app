@@ -458,7 +458,7 @@
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover transition duration-300">
                     <div class="h-48 bg-gradient-to-br from-primary to-secondary flex items-center justify-center relative overflow-hidden">
                         ${p.foto_sertifikat 
-                            ? `<img src="uploads/${p.foto_sertifikat}" alt="Foto" class="w-full h-full object-cover" onclick="openLightbox('uploads/${p.foto_sertifikat}')">`
+                            ? `<img src="uploads/${p.foto_sertifikat}" alt="Foto" class="w-full h-full object-contain" onclick="openLightbox('uploads/${p.foto_sertifikat}')">`
                             : `<i class="fas fa-trophy text-6xl text-white/30"></i>`
                         }
                         <span class="absolute top-2 right-2 ${tingkatColors[p.tingkat]} px-3 py-1 rounded-full text-xs font-bold">
@@ -744,7 +744,7 @@
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover transition duration-300">
                     <div class="h-40 bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center relative overflow-hidden">
                         ${p.foto_sertifikat 
-                            ? `<img src="uploads/${p.foto_sertifikat}" alt="Foto" class="w-full h-full object-cover" onclick="openLightbox('uploads/${p.foto_sertifikat}')">`
+                            ? `<img src="uploads/${p.foto_sertifikat}" alt="Foto" class="w-full h-full object-contain" onclick="openLightbox('uploads/${p.foto_sertifikat}')">`
                             : `<i class="fas fa-chalkboard-teacher text-5xl text-white/30"></i>`
                         }
                         <span class="absolute top-2 right-2 ${tingkatColors[p.tingkat]} px-3 py-1 rounded-full text-xs font-bold">
@@ -800,7 +800,7 @@
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover transition duration-300">
                     <div class="h-40 bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center relative overflow-hidden">
                         ${p.foto_bukti 
-                            ? `<img src="uploads/${p.foto_bukti}" alt="Foto" class="w-full h-full object-cover" onclick="openLightbox('uploads/${p.foto_bukti}')">`
+                            ? `<img src="uploads/${p.foto_bukti}" alt="Foto" class="w-full h-full object-contain" onclick="openLightbox('uploads/${p.foto_bukti}')">`
                             : `<i class="fas fa-school text-5xl text-white/30"></i>`
                         }
                         <span class="absolute top-2 right-2 ${tingkatColors[p.tingkat]} px-3 py-1 rounded-full text-xs font-bold">
@@ -874,7 +874,7 @@
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover transition duration-300">
                     <div class="h-40 bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center relative overflow-hidden">
                         ${a.foto 
-                            ? `<img src="uploads/${a.foto}" alt="Foto" class="w-full h-full object-cover" onclick="openLightbox('uploads/${a.foto}')">`
+                            ? `<img src="uploads/${a.foto}" alt="Foto" class="w-full h-full object-contain" onclick="openLightbox('uploads/${a.foto}')">`
                             : `<i class="fas fa-${jenis === 'kerja' ? 'briefcase' : 'graduation-cap'} text-5xl text-white/30"></i>`
                         }
                         <span class="absolute top-2 right-2 ${warna} px-3 py-1 rounded-full text-xs font-bold text-white">
