@@ -709,11 +709,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div id="siswa_field">
                         <label class="block text-sm font-medium mb-1">Siswa</label>
-                        <select name="siswa_id" class="w-full px-3 py-2 border rounded-lg">
+                        <input type="text" name="siswa_search" id="siswa_search" class="w-full px-3 py-2 border rounded-lg" placeholder="Cari nama siswa..." oninput="filterSiswa(this.value)">
+                        <select name="siswa_id" id="siswa_id" class="w-full px-3 py-2 border rounded-lg mt-1" required>
+                            <option value="">-- Pilih Siswa --</option>
                             <?php 
                             $siswa->data_seek(0);
                             while ($s = $siswa->fetch_assoc()): ?>
-                            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
+                            <option value="<?= $s['id'] ?>" data-nama="<?= strtolower($s['nama_siswa']) ?>" data-kelas="<?= strtolower($s['kelas']) ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -816,11 +818,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Guru</label>
-                        <select name="guru_id" required class="w-full px-3 py-2 border rounded-lg">
+                        <input type="text" name="guru_search" id="guru_search" class="w-full px-3 py-2 border rounded-lg" placeholder="Cari nama guru..." oninput="filterGuru(this.value)">
+                        <select name="guru_id" id="guru_id" class="w-full px-3 py-2 border rounded-lg mt-1" required>
+                            <option value="">-- Pilih Guru --</option>
                             <?php 
                             $guru->data_seek(0);
                             while ($g = $guru->fetch_assoc()): ?>
-                            <option value="<?= $g['id'] ?>"><?= htmlspecialchars($g['nama_guru'].($g['mapel'] ? ' - '.$g['mapel'] : '')) ?></option>
+                            <option value="<?= $g['id'] ?>" data-nama="<?= strtolower($g['nama_guru']) ?>" data-mapel="<?= strtolower($g['mapel'] ?? '') ?>"><?= htmlspecialchars($g['nama_guru'].($g['mapel'] ? ' - '.$g['mapel'] : '')) ?></option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -968,11 +972,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Siswa</label>
-                        <select name="siswa_id" required class="w-full px-3 py-2 border rounded-lg">
+                        <input type="text" name="alumni_siswa_search" id="alumni_siswa_search" class="w-full px-3 py-2 border rounded-lg" placeholder="Cari nama siswa..." oninput="filterAlumniSiswa(this.value)">
+                        <select name="siswa_id" id="alumni_siswa_id" class="w-full px-3 py-2 border rounded-lg mt-1" required>
+                            <option value="">-- Pilih Siswa --</option>
                             <?php 
                             $siswa->data_seek(0);
                             while ($s = $siswa->fetch_assoc()): ?>
-                            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
+                            <option value="<?= $s['id'] ?>" data-nama="<?= strtolower($s['nama_siswa']) ?>" data-kelas="<?= strtolower($s['kelas']) ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -1033,11 +1039,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Siswa</label>
-                        <select name="siswa_id" id="edit_alumni_siswa_id" required class="w-full px-3 py-2 border rounded-lg">
+                        <input type="text" name="edit_alumni_siswa_search" id="edit_alumni_siswa_search" class="w-full px-3 py-2 border rounded-lg" placeholder="Cari nama siswa..." oninput="filterEditAlumniSiswa(this.value)">
+                        <select name="siswa_id" id="edit_alumni_siswa_id" class="w-full px-3 py-2 border rounded-lg mt-1" required>
+                            <option value="">-- Pilih Siswa --</option>
                             <?php 
                             $siswa->data_seek(0);
                             while ($s = $siswa->fetch_assoc()): ?>
-                            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
+                            <option value="<?= $s['id'] ?>" data-nama="<?= strtolower($s['nama_siswa']) ?>" data-kelas="<?= strtolower($s['kelas']) ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -1399,6 +1407,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 jenisPeserta.value = 'kelompok';
                 toggleTimField();
             }
+        }
+
+        function filterSiswa(searchTerm) {
+            const select = document.getElementById('siswa_id');
+            const options = select.querySelectorAll('option');
+            const term = searchTerm.toLowerCase();
+            
+            options.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = '';
+                    return;
+                }
+                const nama = option.getAttribute('data-nama') || '';
+                const kelas = option.getAttribute('data-kelas') || '';
+                if (nama.includes(term) || kelas.includes(term)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        }
+
+        function filterGuru(searchTerm) {
+            const select = document.getElementById('guru_id');
+            const options = select.querySelectorAll('option');
+            const term = searchTerm.toLowerCase();
+            
+            options.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = '';
+                    return;
+                }
+                const nama = option.getAttribute('data-nama') || '';
+                const mapel = option.getAttribute('data-mapel') || '';
+                if (nama.includes(term) || mapel.includes(term)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        }
+
+        function filterAlumniSiswa(searchTerm) {
+            const select = document.getElementById('alumni_siswa_id');
+            const options = select.querySelectorAll('option');
+            const term = searchTerm.toLowerCase();
+            
+            options.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = '';
+                    return;
+                }
+                const nama = option.getAttribute('data-nama') || '';
+                const kelas = option.getAttribute('data-kelas') || '';
+                if (nama.includes(term) || kelas.includes(term)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        }
+
+        function filterEditAlumniSiswa(searchTerm) {
+            const select = document.getElementById('edit_alumni_siswa_id');
+            const options = select.querySelectorAll('option');
+            const term = searchTerm.toLowerCase();
+            
+            options.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = '';
+                    return;
+                }
+                const nama = option.getAttribute('data-nama') || '';
+                const kelas = option.getAttribute('data-kelas') || '';
+                if (nama.includes(term) || kelas.includes(term)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
         }
 
         function toggleTimField() {
