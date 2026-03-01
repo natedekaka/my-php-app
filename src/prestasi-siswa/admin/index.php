@@ -27,6 +27,65 @@ $totalAlumniPTN = $db->query("SELECT COUNT(*) as total FROM alumni_ptn")->fetch_
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
+    if ($action === 'delete_siswa') {
+        $id = (int)$_POST['id'];
+        $db->query("DELETE FROM prestasi WHERE siswa_id = $id");
+        $db->query("DELETE FROM siswa WHERE id = $id");
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'delete_guru') {
+        $id = (int)$_POST['id'];
+        $db->query("DELETE FROM prestasi_guru WHERE guru_id = $id");
+        $db->query("DELETE FROM guru WHERE id = $id");
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'edit_siswa') {
+        $id = (int)$_POST['id'];
+        $nis = $_POST['nis'];
+        $nama = $_POST['nama_siswa'];
+        $kelas = $_POST['kelas'];
+        
+        $stmt = $db->prepare("UPDATE siswa SET nis = ?, nama_siswa = ?, kelas = ? WHERE id = ?");
+        $stmt->bind_param("sssi", $nis, $nama, $kelas, $id);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'edit_guru') {
+        $id = (int)$_POST['id'];
+        $nip = $_POST['nip'];
+        $nama = $_POST['nama_guru'];
+        $mapel = $_POST['mapel'];
+        
+        $stmt = $db->prepare("UPDATE guru SET nip = ?, nama_guru = ?, mapel = ? WHERE id = ?");
+        $stmt->bind_param("sssi", $nip, $nama, $mapel, $id);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'edit_alumni_ptn') {
+        $id = (int)$_POST['id'];
+        $siswa_id = (int)$_POST['siswa_id'];
+        $jenis = $_POST['jenis'];
+        $nama_perguruan = $_POST['nama_perguruan'];
+        $nama_perusahaan = $_POST['nama_perusahaan'];
+        $fakultas = $_POST['fakultas'];
+        $prodi = $_POST['prodi'];
+        $tahun_ajaran = $_POST['tahun_ajaran'];
+        
+        $stmt = $db->prepare("UPDATE alumni_ptn SET siswa_id = ?, jenis = ?, nama_perguruan = ?, nama_perusahaan = ?, fakultas = ?, prodi = ?, tahun_ajaran = ? WHERE id = ?");
+        $stmt->bind_param("issssssi", $siswa_id, $jenis, $nama_perguruan, $nama_perusahaan, $fakultas, $prodi, $tahun_ajaran, $id);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
     if ($action === 'add_siswa') {
         $nis = $_POST['nis'];
         $nama = $_POST['nama_siswa'];
@@ -74,6 +133,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+        
+        $jenis_peserta = $_POST['jenis_peserta'];
+        $nama_tim = $_POST['nama_tim'] ?? null;
+        
+        $stmt = $db->prepare("INSERT INTO prestasi (siswa_id, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, Penyelenggara, foto_sertifikat, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("issssssssss", $siswa_id, $nama_lomba, $jenis, $jenis_peserta, $nama_tim, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_sertifikat, $deskripsi);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
+    }
+    
+    if ($action === 'add_alumni_ptn') {
+        $siswa_id = (int)$_POST['siswa_id'];
+        $jenis = $_POST['jenis'];
+        $nama_perguruan = $_POST['nama_perguruan'] ?? '';
+        $nama_perusahaan = $_POST['nama_perusahaan'] ?? '';
+        $fakultas = $_POST['fakultas'] ?? '';
+        $prodi = $_POST['prodi'] ?? '';
+        $tahun_ajaran = $_POST['tahun_ajaran'];
+        
+        $foto = '';
+        if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../uploads/';
+            $ext = strtolower(pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION));
+            $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            if (in_array($ext, $allowedExt)) {
+                $newFilename = uniqid('alumni_') . '.' . $ext;
+                if (move_uploaded_file($_FILES['foto']['tmp_name'], $uploadDir . $newFilename)) {
+                    $foto = $newFilename;
+                }
+            }
+        }
+        
+        $stmt = $db->prepare("INSERT INTO alumni_ptn (siswa_id, jenis, nama_perguruan, nama_perusahaan, fakultas, prodi, tahun_ajaran, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("isssssss", $siswa_id, $jenis, $nama_perguruan, $nama_perusahaan, $fakultas, $prodi, $tahun_ajaran, $foto);
+        $stmt->execute();
+        header('Location: index.php');
+        exit;
     }
 }
 ?>
@@ -236,6 +334,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button onclick="openEditSiswa(<?= $s['id'] ?>, '<?= htmlspecialchars($s['nis'] ?? '') ?>', '<?= htmlspecialchars($s['nama_siswa']) ?>', '<?= htmlspecialchars($s['kelas']) ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus? Data prestasi siswa ini juga akan dihapus.')">
+                                        <input type="hidden" name="action" value="delete_siswa">
+                                        <input type="hidden" name="id" value="<?= $s['id'] ?>">
+                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -346,6 +451,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button onclick="openEditGuru(<?= $g['id'] ?>, '<?= htmlspecialchars($g['nip'] ?? '') ?>', '<?= htmlspecialchars($g['nama_guru']) ?>', '<?= htmlspecialchars($g['mapel'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus? Data prestasi guru ini juga akan dihapus.')">
+                                        <input type="hidden" name="action" value="delete_guru">
+                                        <input type="hidden" name="id" value="<?= $g['id'] ?>">
+                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -511,6 +623,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <td class="px-4 py-3"><?= htmlspecialchars($alumni['prodi'] ?? '-') ?></td>
                                 <td class="px-4 py-3 text-center"><?= htmlspecialchars($alumni['tahun_ajaran']) ?></td>
                                 <td class="px-4 py-3 text-center">
+                                    <button onclick="openEditAlumni(<?= $alumni['id'] ?>, <?= $alumni['siswa_id'] ?>, '<?= $alumni['jenis'] ?>', '<?= htmlspecialchars($alumni['nama_perguruan'] ?? '') ?>', '<?= htmlspecialchars($alumni['nama_perusahaan'] ?? '') ?>', '<?= htmlspecialchars($alumni['fakultas'] ?? '') ?>', '<?= htmlspecialchars($alumni['prodi'] ?? '') ?>', '<?= htmlspecialchars($alumni['tahun_ajaran'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
                                     <form method="POST" class="inline" onsubmit="return confirm('Yakin hapus?')">
                                         <input type="hidden" name="action" value="delete_alumni_ptn">
                                         <input type="hidden" name="id" value="<?= $alumni['id'] ?>">
@@ -892,6 +1007,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <!-- Modal: Edit Alumni -->
+    <div id="modal-edit-alumni" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Edit Alumni</h3>
+                <button onclick="hideModal('modal-edit-alumni')" class="text-2xl">&times;</button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="edit_alumni_ptn">
+                <input type="hidden" name="id" id="edit_alumni_id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Siswa</label>
+                        <select name="siswa_id" id="edit_alumni_siswa_id" required class="w-full px-3 py-2 border rounded-lg">
+                            <?php 
+                            $siswa->data_seek(0);
+                            while ($s = $siswa->fetch_assoc()): ?>
+                            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama_siswa'].' - '.$s['kelas']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Jenis</label>
+                        <select name="jenis" id="edit_alumni_jenis" required class="w-full px-3 py-2 border rounded-lg" onchange="toggleEditAlumniFields()">
+                            <option value="ptn">Perguruan Tinggi Negeri (PTN)</option>
+                            <option value="pts">Perguruan Tinggi Swasta (PTS)</option>
+                            <option value="kerja">Bekerja</option>
+                        </select>
+                    </div>
+                    <div id="edit_perguruan_field">
+                        <label class="block text-sm font-medium mb-1">Nama Perguruan Tinggi</label>
+                        <input type="text" name="nama_perguruan" id="edit_nama_perguruan" class="w-full px-3 py-2 border rounded-lg" placeholder="contoh: Universitas Indonesia">
+                    </div>
+                    <div id="edit_perusahaan_field" class="hidden">
+                        <label class="block text-sm font-medium mb-1">Nama Perusahaan/Instansi</label>
+                        <input type="text" name="nama_perusahaan" id="edit_nama_perusahaan" class="w-full px-3 py-2 border rounded-lg" placeholder="contoh: PT Maju Jaya">
+                    </div>
+                    <div id="edit_fakultas_field">
+                        <label class="block text-sm font-medium mb-1">Fakultas</label>
+                        <input type="text" name="fakultas" id="edit_fakultas" class="w-full px-3 py-2 border rounded-lg" placeholder="contoh: Kedokteran">
+                    </div>
+                    <div id="edit_prodi_field">
+                        <label class="block text-sm font-medium mb-1">Program Studi</label>
+                        <input type="text" name="prodi" id="edit_prodi" class="w-full px-3 py-2 border rounded-lg" placeholder="contoh: Kedokteran Umum">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tahun Ajaran/Tahun</label>
+                        <input type="text" name="tahun_ajaran" id="edit_tahun_ajaran" required class="w-full px-3 py-2 border rounded-lg" placeholder="contoh: 2024/2025">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-teal-600 text-white py-3 rounded-lg hover:bg-teal-700 mt-4">
+                    Simpan Perubahan
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Edit Siswa -->
     <div id="modal-edit-siswa" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
         <div class="bg-white rounded-xl p-6 w-full max-w-md">
@@ -1237,6 +1409,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('edit_guru_nama').value = nama;
             document.getElementById('edit_guru_mapel').value = mapel;
             showModal('modal-edit-guru');
+        }
+
+        function openEditAlumni(id, siswa_id, jenis, nama_perguruan, nama_perusahaan, fakultas, prodi, tahun_ajaran) {
+            document.getElementById('edit_alumni_id').value = id;
+            document.getElementById('edit_alumni_siswa_id').value = siswa_id;
+            document.getElementById('edit_alumni_jenis').value = jenis;
+            document.getElementById('edit_nama_perguruan').value = nama_perguruan;
+            document.getElementById('edit_nama_perusahaan').value = nama_perusahaan;
+            document.getElementById('edit_fakultas').value = fakultas;
+            document.getElementById('edit_prodi').value = prodi;
+            document.getElementById('edit_tahun_ajaran').value = tahun_ajaran;
+            toggleEditAlumniFields();
+            showModal('modal-edit-alumni');
+        }
+
+        function toggleEditAlumniFields() {
+            const jenis = document.getElementById('edit_alumni_jenis').value;
+            document.getElementById('edit_perguruan_field').classList.toggle('hidden', jenis === 'kerja');
+            document.getElementById('edit_perusahaan_field').classList.toggle('hidden', jenis !== 'kerja');
+            document.getElementById('edit_fakultas_field').classList.toggle('hidden', jenis === 'kerja');
+            document.getElementById('edit_prodi_field').classList.toggle('hidden', jenis === 'kerja');
         }
 
         function openEditPrestasi(id, siswa_id, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, penyelenga, deskripsi) {
