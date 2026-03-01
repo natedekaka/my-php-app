@@ -723,7 +723,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Jenis Prestasi</label>
-                        <select name="jenis_prestasi" required class="w-full px-3 py-2 border rounded-lg">
+                        <select name="jenis_prestasi" id="jenis_prestasi" required class="w-full px-3 py-2 border rounded-lg" onchange="handleJenisPrestasi()">
                             <option value="akademik">Akademik</option>
                             <option value="non-akademik">Non-Akademik</option>
                         </select>
@@ -1389,6 +1389,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         function hideModal(id) {
             document.getElementById(id).classList.add('hidden');
+        }
+
+        function handleJenisPrestasi() {
+            const jenisPrestasi = document.getElementById('jenis_prestasi').value;
+            const jenisPeserta = document.getElementById('jenis_peserta');
+            
+            if (jenisPrestasi === 'non-akademik') {
+                jenisPeserta.value = 'kelompok';
+                toggleTimField();
+            }
         }
 
         function toggleTimField() {
