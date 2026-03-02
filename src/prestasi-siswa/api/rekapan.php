@@ -45,6 +45,13 @@ while ($row = $res->fetch_assoc()) {
     $perJenisGuru[$row['jenis_prestasi']] = $row['total'];
 }
 
+// Per Jenis Peserta - Siswa (perorangan vs kelompok)
+$perJenisPesertaSiswa = [];
+$res = $db->query("SELECT jenis_peserta, COUNT(*) as total FROM prestasi WHERE status_publikasi = 'published' GROUP BY jenis_peserta");
+while ($row = $res->fetch_assoc()) {
+    $perJenisPesertaSiswa[$row['jenis_peserta']] = $row['total'];
+}
+
 // Per Tahun - Siswa
 $perTahunSiswa = [];
 $res = $db->query("SELECT YEAR(tanggal) as tahun, COUNT(*) as total FROM prestasi WHERE status_publikasi = 'published' GROUP BY YEAR(tanggal) ORDER BY tahun DESC");
@@ -80,7 +87,7 @@ while ($row = $res->fetch_assoc()) {
     $perusahaanFavorit[$row['nama_perusahaan']] = $row['total'];
 }
 
-// Ranking Siswa
+// Ranking Siswa - include both perorangan and kelompok achievements
 $ranks = $db->query("
     SELECT s.id, s.nama_siswa, s.kelas, 
            COUNT(p.id) as total,
@@ -88,11 +95,14 @@ $ranks = $db->query("
                WHEN p.peringkat = '1' THEN 3
                WHEN p.peringkat = '2' THEN 2
                WHEN p.peringkat = '3' THEN 1
+               WHEN p.peringkat = 'emas' THEN 3
+               WHEN p.peringkat = 'perak' THEN 2
+               WHEN p.peringkat = 'perunggu' THEN 1
                ELSE 0
            END) as poin_juara
     FROM siswa s
     LEFT JOIN prestasi p ON s.id = p.siswa_id AND p.status_publikasi = 'published'
-    GROUP BY s.id
+    GROUP BY s.id, s.nama_siswa, s.kelas
     HAVING total > 0
     ORDER BY total DESC, poin_juara DESC
     LIMIT 10
@@ -113,11 +123,14 @@ $rankGuru = $db->query("
                WHEN pg.peringkat = '1' THEN 3
                WHEN pg.peringkat = '2' THEN 2
                WHEN pg.peringkat = '3' THEN 1
+               WHEN pg.peringkat = 'emas' THEN 3
+               WHEN pg.peringkat = 'perak' THEN 2
+               WHEN pg.peringkat = 'perunggu' THEN 1
                ELSE 0
            END) as poin_juara
     FROM guru g
     LEFT JOIN prestasi_guru pg ON g.id = pg.guru_id AND pg.status_publikasi = 'published'
-    GROUP BY g.id
+    GROUP BY g.id, g.nama_guru, g.mapel
     HAVING total > 0
     ORDER BY total DESC, poin_juara DESC
     LIMIT 10
@@ -140,6 +153,7 @@ echo json_encode([
     'perTingkatGuru' => $perTingkatGuru,
     'perTingkatSekolah' => $perTingkatSekolah,
     'perJenisSiswa' => $perJenisSiswa,
+    'perJenisPesertaSiswa' => $perJenisPesertaSiswa,
     'perJenisGuru' => $perJenisGuru,
     'perTahunSiswa' => $perTahunSiswa,
     'perTahunGuru' => $perTahunGuru,

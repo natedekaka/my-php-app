@@ -8,6 +8,7 @@ if (!isLoggedIn()) {
 }
 
 $db = getDB();
+$csrf_token = csrf_token();
 
 $db->query("ALTER TABLE prestasi MODIFY COLUMN peringkat VARCHAR(20)");
 $db->query("ALTER TABLE prestasi_guru MODIFY COLUMN peringkat VARCHAR(20)");
@@ -27,9 +28,22 @@ $totalPrestasiGuru = $db->query("SELECT COUNT(*) as total FROM prestasi_guru")->
 $totalPrestasiSekolah = $db->query("SELECT COUNT(*) as total FROM prestasi_sekolah")->fetch_assoc()['total'];
 $totalAlumniPTN = $db->query("SELECT COUNT(*) as total FROM alumni_ptn")->fetch_assoc()['total'];
 
+// Stats per jenis peserta
+$totalPerorangan = $db->query("SELECT COUNT(*) as total FROM prestasi WHERE jenis_peserta = 'perorangan'")->fetch_assoc()['total'];
+$totalKelompok = $db->query("SELECT COUNT(*) as total FROM prestasi WHERE jenis_peserta = 'kelompok'")->fetch_assoc()['total'];
+
+// Stats per jenis prestasi
+$totalAkademik = $db->query("SELECT COUNT(*) as total FROM prestasi WHERE jenis_prestasi = 'akademik'")->fetch_assoc()['total'];
+$totalNonAkademik = $db->query("SELECT COUNT(*) as total FROM prestasi WHERE jenis_prestasi = 'non-akademik'")->fetch_assoc()['total'];
+
 // Handle add/edit/delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    
+    // CSRF Protection - verify token for all POST requests except login
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        die('CSRF validation failed. Please refresh the page and try again.');
+    }
     
     if ($action === 'delete_siswa') {
         $id = (int)$_POST['id'];
@@ -164,7 +178,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ext = strtolower(pathinfo($_FILES['foto_sertifikat']['name'], PATHINFO_EXTENSION));
             $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
             
-            if (in_array($ext, $allowedExt)) {
+            // Validate MIME type
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['foto_sertifikat']['tmp_name']);
+            finfo_close($finfo);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            // Check file size (max 5MB)
+            $maxSize = 5 * 1024 * 1024;
+            
+            if (in_array($ext, $allowedExt) && in_array($mimeType, $allowedMimes) && $_FILES['foto_sertifikat']['size'] <= $maxSize) {
                 $newFilename = uniqid('prestasi_') . '.' . $ext;
                 if (move_uploaded_file($_FILES['foto_sertifikat']['tmp_name'], $uploadDir . $newFilename)) {
                     $foto_sertifikat = $newFilename;
@@ -201,7 +224,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ext = strtolower(pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION));
             $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
             
-            if (in_array($ext, $allowedExt)) {
+            // Validate MIME type
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['foto']['tmp_name']);
+            finfo_close($finfo);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            // Check file size (max 5MB)
+            $maxSize = 5 * 1024 * 1024;
+            
+            if (in_array($ext, $allowedExt) && in_array($mimeType, $allowedMimes) && $_FILES['foto']['size'] <= $maxSize) {
                 $newFilename = uniqid('alumni_') . '.' . $ext;
                 if (move_uploaded_file($_FILES['foto']['tmp_name'], $uploadDir . $newFilename)) {
                     $foto = $newFilename;
@@ -226,8 +258,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $penyelenggara = $_POST['penyelenggara'] ?? '';
         $deskripsi = $_POST['deskripsi'] ?? '';
         
-        $stmt = $db->prepare("INSERT INTO prestasi_guru (guru_id, nama_lomba, jenis_prestasi, tingkat, peringkat, tanggal, Penyelenggara, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("isssssss", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi);
+        $foto_sertifikat = '';
+        if (isset($_FILES['foto_sertifikat']) && $_FILES['foto_sertifikat']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../uploads/';
+            $ext = strtolower(pathinfo($_FILES['foto_sertifikat']['name'], PATHINFO_EXTENSION));
+            $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['foto_sertifikat']['tmp_name']);
+            finfo_close($finfo);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            $maxSize = 5 * 1024 * 1024;
+            
+            if (in_array($ext, $allowedExt) && in_array($mimeType, $allowedMimes) && $_FILES['foto_sertifikat']['size'] <= $maxSize) {
+                $newFilename = uniqid('guru_') . '.' . $ext;
+                if (move_uploaded_file($_FILES['foto_sertifikat']['tmp_name'], $uploadDir . $newFilename)) {
+                    $foto_sertifikat = $newFilename;
+                }
+            }
+        }
+        
+        $stmt = $db->prepare("INSERT INTO prestasi_guru (guru_id, nama_lomba, jenis_prestasi, tingkat, peringkat, tanggal, Penyelenggara, foto_sertifikat, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("issssssss", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_sertifikat, $deskripsi);
         $stmt->execute();
         header('Location: index.php');
         exit;
@@ -244,8 +297,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $penyelenggara = $_POST['penyelenggara'] ?? '';
         $deskripsi = $_POST['deskripsi'] ?? '';
         
-        $stmt = $db->prepare("UPDATE prestasi_guru SET guru_id = ?, nama_lomba = ?, jenis_prestasi = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
-        $stmt->bind_param("isssssssi", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        $foto_sertifikat = '';
+        if (isset($_FILES['foto_sertifikat']) && $_FILES['foto_sertifikat']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../uploads/';
+            $ext = strtolower(pathinfo($_FILES['foto_sertifikat']['name'], PATHINFO_EXTENSION));
+            $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['foto_sertifikat']['tmp_name']);
+            finfo_close($finfo);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            $maxSize = 5 * 1024 * 1024;
+            
+            if (in_array($ext, $allowedExt) && in_array($mimeType, $allowedMimes) && $_FILES['foto_sertifikat']['size'] <= $maxSize) {
+                $newFilename = uniqid('guru_') . '.' . $ext;
+                if (move_uploaded_file($_FILES['foto_sertifikat']['tmp_name'], $uploadDir . $newFilename)) {
+                    $foto_sertifikat = $newFilename;
+                }
+            }
+        }
+        
+        if ($foto_sertifikat) {
+            $stmt = $db->prepare("UPDATE prestasi_guru SET guru_id = ?, nama_lomba = ?, jenis_prestasi = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelanggar = ?, foto_sertifikat = ?, deskripsi = ? WHERE id = ?");
+            $stmt->bind_param("issssssssi", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_sertifikat, $deskripsi, $id);
+        } else {
+            $stmt = $db->prepare("UPDATE prestasi_guru SET guru_id = ?, nama_lomba = ?, jenis_prestasi = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelanggar = ?, deskripsi = ? WHERE id = ?");
+            $stmt->bind_param("isssssssi", $guru_id, $nama_lomba, $jenis_prestasi, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        }
         $stmt->execute();
         header('Location: index.php');
         exit;
@@ -267,8 +346,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $penyelenggara = $_POST['penyelenggara'] ?? '';
         $deskripsi = $_POST['deskripsi'] ?? '';
         
-        $stmt = $db->prepare("INSERT INTO prestasi_sekolah (nama_prestasi, kategori, tingkat, peringkat, tanggal, Penyelenggara, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssssss", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi);
+        $foto_bukti = '';
+        if (isset($_FILES['foto_bukti']) && $_FILES['foto_bukti']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../uploads/';
+            $ext = strtolower(pathinfo($_FILES['foto_bukti']['name'], PATHINFO_EXTENSION));
+            $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['foto_bukti']['tmp_name']);
+            finfo_close($finfo);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            $maxSize = 5 * 1024 * 1024;
+            
+            if (in_array($ext, $allowedExt) && in_array($mimeType, $allowedMimes) && $_FILES['foto_bukti']['size'] <= $maxSize) {
+                $newFilename = uniqid('sekolah_') . '.' . $ext;
+                if (move_uploaded_file($_FILES['foto_bukti']['tmp_name'], $uploadDir . $newFilename)) {
+                    $foto_bukti = $newFilename;
+                }
+            }
+        }
+        
+        $stmt = $db->prepare("INSERT INTO prestasi_sekolah (nama_prestasi, kategori, tingkat, peringkat, tanggal, Penyelenggara, foto_bukti, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssss", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_bukti, $deskripsi);
         $stmt->execute();
         header('Location: index.php');
         exit;
@@ -284,8 +384,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $penyelenggara = $_POST['penyelenggara'] ?? '';
         $deskripsi = $_POST['deskripsi'] ?? '';
         
-        $stmt = $db->prepare("UPDATE prestasi_sekolah SET nama_prestasi = ?, kategori = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
-        $stmt->bind_param("sssssssi", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        $foto_bukti = '';
+        if (isset($_FILES['foto_bukti']) && $_FILES['foto_bukti']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../uploads/';
+            $ext = strtolower(pathinfo($_FILES['foto_bukti']['name'], PATHINFO_EXTENSION));
+            $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['foto_bukti']['tmp_name']);
+            finfo_close($finfo);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            $maxSize = 5 * 1024 * 1024;
+            
+            if (in_array($ext, $allowedExt) && in_array($mimeType, $allowedMimes) && $_FILES['foto_bukti']['size'] <= $maxSize) {
+                $newFilename = uniqid('sekolah_') . '.' . $ext;
+                if (move_uploaded_file($_FILES['foto_bukti']['tmp_name'], $uploadDir . $newFilename)) {
+                    $foto_bukti = $newFilename;
+                }
+            }
+        }
+        
+        if ($foto_bukti) {
+            $stmt = $db->prepare("UPDATE prestasi_sekolah SET nama_prestasi = ?, kategori = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, foto_bukti = ?, deskripsi = ? WHERE id = ?");
+            $stmt->bind_param("ssssssssi", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $foto_bukti, $deskripsi, $id);
+        } else {
+            $stmt = $db->prepare("UPDATE prestasi_sekolah SET nama_prestasi = ?, kategori = ?, tingkat = ?, peringkat = ?, tanggal = ?, Penyelenggara = ?, deskripsi = ? WHERE id = ?");
+            $stmt->bind_param("sssssssi", $nama_prestasi, $kategori, $tingkat, $peringkat, $tanggal, $penyelenggara, $deskripsi, $id);
+        }
         $stmt->execute();
         header('Location: index.php');
         exit;
@@ -370,8 +496,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Export All Button -->
+        <div class="flex justify-end mb-4">
+            <a href="../api/export.php?type=all" target="_blank" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 shadow flex items-center">
+                <i class="fas fa-file-excel mr-2"></i> Export Semua Data (Excel)
+            </a>
+        </div>
+        
         <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
             <div class="bg-white rounded-xl p-6 shadow">
                 <div class="flex items-center justify-between">
                     <div>
@@ -433,6 +566,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="text-3xl font-bold text-yellow-600"><?= $totalPending ?></p>
                     </div>
                     <i class="fas fa-clock text-4xl text-yellow-600/20"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Prestasi Siswa Detail -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-green-50 rounded-xl p-4 border border-green-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-700 text-sm">Perorangan</p>
+                        <p class="text-2xl font-bold text-green-600"><?= $totalPerorangan ?></p>
+                    </div>
+                    <i class="fas fa-user text-2xl text-green-400"></i>
+                </div>
+            </div>
+            <div class="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-orange-700 text-sm">Kelompok/Tim</p>
+                        <p class="text-2xl font-bold text-orange-600"><?= $totalKelompok ?></p>
+                    </div>
+                    <i class="fas fa-users text-2xl text-orange-400"></i>
+                </div>
+            </div>
+            <div class="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-blue-700 text-sm">Akademik</p>
+                        <p class="text-2xl font-bold text-blue-600"><?= $totalAkademik ?></p>
+                    </div>
+                    <i class="fas fa-book text-2xl text-blue-400"></i>
+                </div>
+            </div>
+            <div class="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-purple-700 text-sm">Non-Akademik</p>
+                        <p class="text-2xl font-bold text-purple-600"><?= $totalNonAkademik ?></p>
+                    </div>
+                    <i class="fas fa-palette text-2xl text-purple-400"></i>
                 </div>
             </div>
         </div>
@@ -500,6 +673,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" id="delete-form-siswa-<?= $s['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="delete_siswa">
                                         <input type="hidden" name="id" value="<?= $s['id'] ?>">
                                         <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-siswa-<?= $s['id'] ?>'), 'Yakin hapus? Data prestasi siswa ini juga akan dihapus.')" class="text-red-500 hover:text-red-700">
@@ -518,9 +692,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div id="tab-data-prestasi" class="tab-content p-6 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold">Data Prestasi</h3>
-                    <button onclick="showModal('modal-prestasi')" class="bg-primary text-white px-4 py-2 rounded hover:bg-blue-700">
-                        <i class="fas fa-plus mr-1"></i> Tambah Prestasi
-                    </button>
+                    <div class="flex gap-2">
+                        <a href="../api/export.php?type=siswa" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            <i class="fas fa-file-excel mr-1"></i> Export Excel
+                        </a>
+                        <button onclick="showModal('modal-prestasi')" class="bg-primary text-white px-4 py-2 rounded hover:bg-blue-700">
+                            <i class="fas fa-plus mr-1"></i> Tambah Prestasi
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
@@ -566,6 +745,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <form method="POST" class="inline" id="delete-form-prestasi-<?= $p['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="delete_prestasi">
                                         <input type="hidden" name="id" value="<?= $p['id'] ?>">
                                         <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-prestasi-<?= $p['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
@@ -619,6 +799,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" id="delete-form-guru-<?= $g['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="delete_guru">
                                         <input type="hidden" name="id" value="<?= $g['id'] ?>">
                                         <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-guru-<?= $g['id'] ?>'), 'Yakin hapus? Data prestasi guru ini juga akan dihapus.')" class="text-red-500 hover:text-red-700">
@@ -637,9 +818,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div id="tab-data-prestasi-guru" class="tab-content p-6 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold">Prestasi Guru</h3>
-                    <button onclick="showModal('modal-prestasi-guru')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        <i class="fas fa-plus mr-1"></i> Tambah Prestasi Guru
-                    </button>
+                    <div class="flex gap-2">
+                        <a href="../api/export.php?type=guru" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            <i class="fas fa-file-excel mr-1"></i> Export Excel
+                        </a>
+                        <button onclick="showModal('modal-prestasi-guru')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            <i class="fas fa-plus mr-1"></i> Tambah Prestasi Guru
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
@@ -676,10 +862,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button type="button" onclick="openEditPrestasiGuru(<?= $pg['id'] ?>, <?= $pg['guru_id'] ?>, '<?= htmlspecialchars($pg['nama_lomba']) ?>', '<?= $pg['jenis_prestasi'] ?>', '<?= $pg['tingkat'] ?>', '<?= $pg['peringkat'] ?>', '<?= $pg['tanggal'] ?>', '<?= htmlspecialchars($pg['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($pg['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" class="text-blue-500 hover:text-blue-700 mr-2 btn-edit-prestasi-guru"
+                                        data-id="<?= $pg['id'] ?>"
+                                        data-guru_id="<?= $pg['guru_id'] ?>"
+                                        data-nama_lomba="<?= htmlspecialchars($pg['nama_lomba'] ?? '') ?>"
+                                        data-jenis_prestasi="<?= $pg['jenis_prestasi'] ?>"
+                                        data-tingkat="<?= $pg['tingkat'] ?>"
+                                        data-peringkat="<?= $pg['peringkat'] ?>"
+                                        data-tanggal="<?= $pg['tanggal'] ?>"
+                                        data-penyelenggara="<?= htmlspecialchars($pg['penyelenggara'] ?? '') ?>"
+                                        data-deskripsi="<?= htmlspecialchars($pg['deskripsi'] ?? '') ?>">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" id="delete-form-prestasi-guru-<?= $pg['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="delete_prestasi_guru">
                                         <input type="hidden" name="id" value="<?= $pg['id'] ?>">
                                         <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-prestasi-guru-<?= $pg['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
@@ -698,9 +894,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div id="tab-data-prestasi-sekolah" class="tab-content p-6 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold">Prestasi Sekolah</h3>
-                    <button onclick="showModal('modal-prestasi-sekolah')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-                        <i class="fas fa-plus mr-1"></i> Tambah Prestasi Sekolah
-                    </button>
+                    <div class="flex gap-2">
+                        <a href="../api/export.php?type=sekolah" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            <i class="fas fa-file-excel mr-1"></i> Export Excel
+                        </a>
+                        <button onclick="showModal('modal-prestasi-sekolah')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                            <i class="fas fa-plus mr-1"></i> Tambah Prestasi Sekolah
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
@@ -730,10 +931,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </td>
                                 <td class="px-4 py-3 text-center"><?= date('d/m/Y', strtotime($ps['tanggal'])) ?></td>
                                 <td class="px-4 py-3 text-center">
-                                    <button type="button" onclick="openEditPrestasiSekolah(<?= $ps['id'] ?>, '<?= htmlspecialchars($ps['nama_prestasi']) ?>', '<?= htmlspecialchars($ps['kategori'] ?? '') ?>', '<?= $ps['tingkat'] ?>', '<?= $ps['peringkat'] ?>', '<?= $ps['tanggal'] ?>', '<?= htmlspecialchars($ps['penyelenggara'] ?? '') ?>', '<?= htmlspecialchars($ps['deskripsi'] ?? '') ?>')" class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button type="button" class="text-blue-500 hover:text-blue-700 mr-2 btn-edit-prestasi-sekolah"
+                                        data-id="<?= $ps['id'] ?>"
+                                        data-nama_prestasi="<?= htmlspecialchars($ps['nama_prestasi'] ?? '') ?>"
+                                        data-kategori="<?= htmlspecialchars($ps['kategori'] ?? '') ?>"
+                                        data-tingkat="<?= $ps['tingkat'] ?>"
+                                        data-peringkat="<?= $ps['peringkat'] ?>"
+                                        data-tanggal="<?= $ps['tanggal'] ?>"
+                                        data-penyelenggara="<?= htmlspecialchars($ps['penyelenggara'] ?? '') ?>"
+                                        data-deskripsi="<?= htmlspecialchars($ps['deskripsi'] ?? '') ?>">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" id="delete-form-prestasi-sekolah-<?= $ps['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="delete_prestasi_sekolah">
                                         <input type="hidden" name="id" value="<?= $ps['id'] ?>">
                                         <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-prestasi-sekolah-<?= $ps['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
@@ -752,9 +962,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div id="tab-data-alumni-ptn" class="tab-content p-6 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold">Data Alumni</h3>
-                    <button onclick="showModal('modal-alumni-ptn')" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
-                        <i class="fas fa-plus mr-1"></i> Tambah Alumni
-                    </button>
+                    <div class="flex gap-2">
+                        <a href="../api/export.php?type=alumni" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            <i class="fas fa-file-excel mr-1"></i> Export Excel
+                        </a>
+                        <button onclick="showModal('modal-alumni-ptn')" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+                            <i class="fas fa-plus mr-1"></i> Tambah Alumni
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
@@ -794,6 +1009,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" class="inline" id="delete-form-alumni-<?= $alumni['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="delete_alumni_ptn">
                                         <input type="hidden" name="id" value="<?= $alumni['id'] ?>">
                                         <button type="button" onclick="showDeleteConfirm(document.getElementById('delete-form-alumni-<?= $alumni['id'] ?>'), 'Yakin hapus?')" class="text-red-500 hover:text-red-700">
@@ -818,6 +1034,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-siswa')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="add_siswa">
                 <div class="space-y-4">
                     <div>
@@ -848,6 +1065,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-prestasi')" class="text-2xl">&times;</button>
             </div>
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="add_prestasi">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -957,6 +1175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-guru')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="add_guru">
                 <div class="space-y-4">
                     <div>
@@ -987,6 +1206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-prestasi-guru')" class="text-2xl">&times;</button>
             </div>
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="add_prestasi_guru">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1087,6 +1307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-prestasi-sekolah')" class="text-2xl">&times;</button>
             </div>
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="add_prestasi_sekolah">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
@@ -1160,6 +1381,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-alumni-ptn')" class="text-2xl">&times;</button>
             </div>
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="add_alumni_ptn">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1242,6 +1464,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-edit-alumni')" class="text-2xl">&times;</button>
             </div>
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="edit_alumni_ptn">
                 <input type="hidden" name="id" id="edit_alumni_id">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1317,6 +1540,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-edit-siswa')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="edit_siswa">
                 <input type="hidden" name="id" id="edit_siswa_id">
                 <div class="space-y-4">
@@ -1348,6 +1572,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-edit-guru')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="edit_guru">
                 <input type="hidden" name="id" id="edit_guru_id">
                 <div class="space-y-4">
@@ -1379,6 +1604,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-edit-prestasi')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="edit_prestasi">
                 <input type="hidden" name="id" id="edit_prestasi_id">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1482,6 +1708,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-edit-prestasi-guru')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="edit_prestasi_guru">
                 <input type="hidden" name="id" id="edit_prestasi_guru_id">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1558,6 +1785,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button onclick="hideModal('modal-edit-prestasi-sekolah')" class="text-2xl">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                 <input type="hidden" name="action" value="edit_prestasi_sekolah">
                 <input type="hidden" name="id" id="edit_prestasi_sekolah_id">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1808,24 +2036,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('edit_prodi_field').classList.toggle('hidden', jenis === 'kerja');
         }
 
-        function openEditPrestasi(id, siswa_id, nama_siswa, nama_lomba, jenis_prestasi, jenis_peserta, nama_tim, tingkat, peringkat, tanggal, penyelenga, deskripsi) {
-            document.getElementById('edit_prestasi_id').value = id;
-            document.getElementById('edit_prestasi_siswa_id').value = siswa_id;
-            document.getElementById('edit_siswa_search').value = nama_siswa;
-            document.getElementById('edit_prestasi_nama_lomba').value = nama_lomba;
-            document.getElementById('edit_prestasi_jenis').value = jenis_prestasi;
-            document.getElementById('edit_jenis_peserta').value = jenis_peserta;
-            document.getElementById('edit_prestasi_nama_tim').value = nama_tim;
-            document.getElementById('edit_prestasi_tingkat').value = tingkat;
-            document.getElementById('edit_prestasi_peringkat').value = peringkat;
-            document.getElementById('edit_prestasi_tanggal').value = tanggal;
-            document.getElementById('edit_prestasi_penyelenggara').value = penyelenga;
-            document.getElementById('edit_prestasi_deskripsi').value = deskripsi;
-            
-            toggleEditTimField();
-            showModal('modal-edit-prestasi');
-        }
-
         function openEditPrestasiGuru(id, guru_id, nama_lomba, jenis_prestasi, tingkat, peringkat, tanggal, penyelenga, deskripsi) {
             document.getElementById('edit_prestasi_guru_id').value = id;
             document.getElementById('edit_prestasi_guru_guru_id').value = guru_id;
@@ -1894,26 +2104,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        document.querySelectorAll('.btn-edit-prestasi').forEach(btn => {
+        document.querySelectorAll('.btn-edit-prestasi-guru').forEach(btn => {
             btn.addEventListener('click', function() {
                 const data = this.dataset;
-                const namaSiswa = data.jenisPeserta === 'kelompok' ? (data.namaTim || 'Tim') : (data.namaSiswa + ' - ' + data.kelas);
                 
-                document.getElementById('edit_prestasi_id').value = data.id;
-                document.getElementById('edit_prestasi_siswa_id').value = data.siswaId || '';
-                document.getElementById('edit_siswa_search').value = namaSiswa;
-                document.getElementById('edit_prestasi_nama_lomba').value = data.namaLomba;
-                document.getElementById('edit_prestasi_jenis').value = data.jenisPrestasi;
-                document.getElementById('edit_jenis_peserta').value = data.jenisPeserta;
-                document.getElementById('edit_prestasi_nama_tim').value = data.namaTim || '';
-                document.getElementById('edit_prestasi_tingkat').value = data.tingkat;
-                document.getElementById('edit_prestasi_peringkat').value = data.peringkat;
-                document.getElementById('edit_prestasi_tanggal').value = data.tanggal;
-                document.getElementById('edit_prestasi_penyelenggara').value = data.penyelenggara || '';
-                document.getElementById('edit_prestasi_deskripsi').value = data.deskripsi || '';
+                document.getElementById('edit_prestasi_guru_id').value = data.id;
+                document.getElementById('edit_prestasi_guru_guru_id').value = data.guruId || '';
+                document.getElementById('edit_prestasi_guru_nama_lomba').value = data.namaLomba || '';
+                document.getElementById('edit_prestasi_guru_jenis').value = data.jenisPrestasi || 'akademik';
+                document.getElementById('edit_prestasi_guru_tingkat').value = data.tingkat || 'sekolah';
+                document.getElementById('edit_prestasi_guru_peringkat').value = data.peringkat || '1';
+                document.getElementById('edit_prestasi_guru_tanggal').value = data.tanggal || '';
+                document.getElementById('edit_prestasi_guru_penyelenggara').value = data.penyelenggara || '';
+                document.getElementById('edit_prestasi_guru_deskripsi').value = data.deskripsi || '';
                 
-                toggleEditTimField();
-                showModal('modal-edit-prestasi');
+                showModal('modal-edit-prestasi-guru');
+            });
+        });
+
+        document.querySelectorAll('.btn-edit-prestasi-sekolah').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const data = this.dataset;
+                
+                document.getElementById('edit_prestasi_sekolah_id').value = data.id;
+                document.getElementById('edit_prestasi_sekolah_nama').value = data.namaPrestasi || '';
+                document.getElementById('edit_prestasi_sekolah_kategori').value = data.kategori || '';
+                document.getElementById('edit_prestasi_sekolah_tingkat').value = data.tingkat || 'sekolah';
+                document.getElementById('edit_prestasi_sekolah_peringkat').value = data.peringkat || '1';
+                document.getElementById('edit_prestasi_sekolah_tanggal').value = data.tanggal || '';
+                document.getElementById('edit_prestasi_sekolah_penyelenggara').value = data.penyelenggara || '';
+                document.getElementById('edit_prestasi_sekolah_deskripsi').value = data.deskripsi || '';
+                
+                showModal('modal-edit-prestasi-sekolah');
             });
         });
     </script>

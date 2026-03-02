@@ -3,8 +3,19 @@ session_start();
 require_once '../config.php';
 
 $error = '';
+$csrf_token = csrf_token();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Rate limiting - track failed login attempts
+$loginAttempts = $_SESSION['login_attempts'] ?? 0;
+$lockoutTime = $_SESSION['lockout_until'] ?? 0;
+
+if ($loginAttempts >= 5 && time() < $lockoutTime) {
+    $remainingTime = ceil(($lockoutTime - time()) / 60);
+    $error = "Terlalu banyak percobaan login. Silakan coba lagi dalam $remainingTime menit.";
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $error = 'CSRF validation failed. Please refresh the page and try again.';
+    } else {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
@@ -16,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($row = $result->fetch_assoc()) {
         if (password_verify($password, $row['password'])) {
+            // Reset failed attempts on successful login
+            $_SESSION['login_attempts'] = 0;
+            $_SESSION['lockout_until'] = 0;
             $_SESSION['admin_id'] = $row['id'];
             $_SESSION['admin_nama'] = $row['nama_lengkap'];
             $_SESSION['admin_role'] = $row['role'];
@@ -23,7 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     }
+    // Increment failed login attempts
+    $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
+    if ($_SESSION['login_attempts'] >= 5) {
+        $_SESSION['lockout_until'] = time() + (15 * 60); // 15 minutes lockout
+    }
     $error = 'Username atau password salah!';
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -63,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
         
         <form method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
             <div>
                 <label class="block text-gray-700 mb-2">Username</label>
                 <input type="text" name="username" required

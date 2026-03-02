@@ -233,14 +233,18 @@
 
                 <!-- Rekapan Siswa -->
                 <div id="rekapan-siswa" class="rekapan-content p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div>
                             <h4 class="font-bold mb-4 flex items-center"><i class="fas fa-chart-bar mr-2 text-blue-500"></i>Per Tingkat</h4>
                             <div id="chartTingkatSiswa" class="space-y-3"></div>
                         </div>
                         <div>
-                            <h4 class="font-bold mb-4 flex items-center"><i class="fas fa-chart-pie mr-2 text-blue-500"></i>Per Jenis</h4>
+                            <h4 class="font-bold mb-4 flex items-center"><i class="fas fa-book mr-2 text-blue-500"></i>Per Jenis Prestasi</h4>
                             <div id="chartJenisSiswa" class="space-y-3"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-bold mb-4 flex items-center"><i class="fas fa-users mr-2 text-blue-500"></i>Per Jenis Peserta</h4>
+                            <div id="chartJenisPesertaSiswa" class="space-y-3"></div>
                         </div>
                     </div>
                     <div class="mt-6">
@@ -314,11 +318,7 @@
                 </div>
             </div>
             
-            <div class="mt-8 text-center">
-                <button onclick="exportExcel()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
-                    <i class="fas fa-file-excel mr-2"></i> Export ke Excel
-                </button>
-            </div>
+
         </div>
     </section>
 
@@ -482,7 +482,7 @@
                         <h3 class="font-bold text-lg text-gray-800 mb-1">${p.nama_lomba}</h3>
                         <p class="text-primary font-semibold">${p.jenis_peserta === 'kelompok' && p.nama_tim ? p.nama_tim : p.nama_siswa}</p>
                         <p class="text-gray-500 text-sm">${p.jenis_peserta === 'kelompok' ? (p.nama_tim + ' | ') : (p.kelas + ' | ')} ${formatDate(p.tanggal)}</p>
-                        <p class="text-gray-600 text-sm mt-2">${p.penyelenggara || ''}</p>
+                        <p class="text-gray-600 text-sm mt-2">${p.Penyelenggara || ''}</p>
                         <div class="mt-4 flex justify-between items-center">
                             <span class="text-xs text-gray-400">${poin[p.tingkat]} poin</span>
                             <button onclick="showDetail(${p.id})" class="text-primary hover:underline text-sm">
@@ -547,6 +547,23 @@
                 </div>
             `).join('') || '<p class="text-gray-500 text-sm">Belum ada data</p>';
             document.getElementById('chartJenisSiswa').innerHTML = jenisSiswaHtml;
+            
+            // Chart Jenis Peserta - Siswa (perorangan vs kelompok)
+            const warnaJenisPeserta = { 'perorangan': 'bg-green-500', 'kelompok': 'bg-orange-500' };
+            const labelJenisPeserta = { 'perorangan': 'Perorangan', 'kelompok': 'Kelompok/Tim' };
+            const totalJenisPeserta = Object.values(data.perJenisPesertaSiswa || {}).reduce((a, b) => a + b, 0) || 1;
+            const jenisPesertaSiswaHtml = Object.entries(data.perJenisPesertaSiswa || {}).map(([key, val]) => `
+                <div class="flex items-center justify-between">
+                    <span>${labelJenisPeserta[key] || key}</span>
+                    <div class="flex items-center">
+                        <div class="w-32 h-5 bg-gray-200 rounded-full overflow-hidden mr-2">
+                            <div class="h-full ${warnaJenisPeserta[key] || 'bg-gray-500'}" style="width: ${(val / totalJenisPeserta) * 100}%"></div>
+                        </div>
+                        <span class="font-bold text-orange-600">${val}</span>
+                    </div>
+                </div>
+            `).join('') || '<p class="text-gray-500 text-sm">Belum ada data</p>';
+            document.getElementById('chartJenisPesertaSiswa').innerHTML = jenisPesertaSiswaHtml;
             
             // Chart Tahun - Siswa
             const tahunSiswaHtml = Object.entries(data.perTahunSiswa || {}).map(([key, val]) => `
@@ -695,7 +712,7 @@
                             <p><strong>Tingkat:</strong> ${p.tingkat}</p>
                             <p><strong>Peringkat:</strong> ${p.peringkat}</p>
                             <p><strong>Tanggal:</strong> ${formatDate(p.tanggal)}</p>
-                            <p><strong>Penyelenggara:</strong> ${p.penyelenggara || '-'}</p>
+                            <p><strong>Penyelenggara:</strong> ${p.Penyelenggara || '-'}</p>
                             ${p.deskripsi ? `<p><strong>Deskripsi:</strong> ${p.deskripsi}</p>` : ''}
                         </div>
                     </div>
@@ -707,10 +724,6 @@
         function formatDate(dateStr) {
             const options = { year: 'numeric', month: 'long', day: 'numeric' };
             return new Date(dateStr).toLocaleDateString('id-ID', options);
-        }
-
-        function exportExcel() {
-            window.location.href = 'api/export.php';
         }
 
         async function fetchPrestasiGuru() {
@@ -763,7 +776,7 @@
                         <h3 class="font-bold text-lg text-gray-800 mb-1">${p.nama_lomba}</h3>
                         <p class="text-blue-600 font-semibold">${p.nama_guru}</p>
                         <p class="text-gray-500 text-sm">${p.mapel || 'Guru'} | ${formatDate(p.tanggal)}</p>
-                        <p class="text-gray-600 text-sm mt-2">${p.penyelenggara || ''}</p>
+                        <p class="text-gray-600 text-sm mt-2">${p.Penyelenggara || ''}</p>
                     </div>
                 </div>
             `).join('');
@@ -781,7 +794,7 @@
         }
 
         function renderPrestasiSekolah(data) {
-            const grid = document.getElementById('prastasSekolahGrid');
+            const grid = document.getElementById('prestasSekolahGrid');
             if (!data || data.length === 0) {
                 grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8"><i class="fas fa-inbox text-4xl mb-2"></i><p>Belum ada data prestasi sekolah</p></div>';
                 return;
@@ -818,7 +831,7 @@
                         </div>
                         <h3 class="font-bold text-lg text-gray-800 mb-1">${p.nama_prestasi}</h3>
                         <p class="text-gray-500 text-sm">${formatDate(p.tanggal)}</p>
-                        <p class="text-gray-600 text-sm mt-2">${p.penyelenggara || ''}</p>
+                        <p class="text-gray-600 text-sm mt-2">${p.Penyelenggara || ''}</p>
                     </div>
                 </div>
             `).join('');
