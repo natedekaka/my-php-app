@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "8084:80"
+      - "8090:80"
     volumes:
       - ./src:/var/www/html:Z
     depends_on:
@@ -18,7 +18,7 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: pass123
     ports:
-      - "3308:3306"
+      - "3310:3306"
     volumes:
       - dbdata:/var/lib/mysql:Z
     networks:
@@ -27,7 +27,7 @@ services:
   phpmyadmin:
     image: docker.io/library/phpmyadmin:latest
     ports:
-      - "8085:80"
+      - "8091:80"
     environment:
       PMA_HOST: db
       PMA_ARBITRARY: 1

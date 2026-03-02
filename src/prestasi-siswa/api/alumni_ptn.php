@@ -8,7 +8,7 @@ $sql = "SELECT a.*, s.nama_siswa, s.kelas
         FROM alumni_ptn a 
         JOIN siswa s ON a.siswa_id = s.id 
         WHERE a.status_publikasi = 'published'
-        ORDER BY a.tahun_ajaran DESC, s.nama_siswa
+        ORDER BY a.tahun_ajaran DESC, a.id DESC
         LIMIT 20";
 
 $result = $db->query($sql);

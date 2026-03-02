@@ -48,7 +48,7 @@ $sql = "SELECT p.*, s.nama_siswa, s.kelas, s.nis
         FROM prestasi p 
         LEFT JOIN siswa s ON p.siswa_id = s.id 
         $where 
-        ORDER BY p.tanggal DESC, p.tingkat ASC 
+        ORDER BY p.tanggal DESC, p.id DESC 
         LIMIT ? OFFSET ?";
 
 $params[] = $limit;

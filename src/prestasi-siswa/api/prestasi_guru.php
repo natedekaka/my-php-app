@@ -8,7 +8,7 @@ $sql = "SELECT pg.*, g.nama_guru, g.mapel
         FROM prestasi_guru pg 
         JOIN guru g ON pg.guru_id = g.id 
         WHERE pg.status_publikasi = 'published'
-        ORDER BY pg.tanggal DESC, pg.tingkat ASC 
+        ORDER BY pg.tanggal DESC, pg.id DESC 
         LIMIT 20";
 
 $result = $db->query($sql);

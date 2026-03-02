@@ -6,7 +6,7 @@ $db = getDB();
 
 $sql = "SELECT * FROM prestasi_sekolah 
         WHERE status_publikasi = 'published'
-        ORDER BY tanggal DESC, tingkat ASC 
+        ORDER BY tanggal DESC, id DESC 
         LIMIT 20";
 
 $result = $db->query($sql);
