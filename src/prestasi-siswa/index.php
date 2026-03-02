@@ -378,6 +378,9 @@
     <script>
         let page = 1;
         let allData = [];
+        let dataGuru = [];
+        let dataSekolah = [];
+        let dataAlumni = [];
         
         function toggleMenu() {
             document.getElementById('mobileMenu').classList.toggle('hidden');
@@ -721,6 +724,134 @@
             document.body.appendChild(modal);
         }
 
+        function showDetailGuru(id) {
+            console.log('showDetailGuru called with id:', id, 'dataGuru:', dataGuru);
+            const p = dataGuru.find(x => Number(x.id) === Number(id));
+            if (!p) {
+                console.error('Data not found for id:', id);
+                alert('Data tidak ditemukan');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h2 class="text-2xl font-bold">${p.nama_lomba}</h2>
+                            <button onclick="this.closest('.fixed').remove()" class="text-2xl">&times;</button>
+                        </div>
+                        ${p.foto_sertifikat ? `
+                            <div class="mb-4">
+                                <img src="uploads/${p.foto_sertifikat}" alt="Foto" class="w-full max-h-64 object-contain rounded-lg cursor-pointer" onclick="openLightbox('uploads/${p.foto_sertifikat}')">
+                                <p class="text-center text-sm text-gray-500 mt-1">Klik foto untuk memperbesar</p>
+                            </div>
+                        ` : ''}
+                        <div class="space-y-3">
+                            <p><strong>Guru:</strong> ${p.nama_guru}</p>
+                            <p><strong>Mata Pelajaran:</strong> ${p.mapel || '-'}</p>
+                            <p><strong>Lomba:</strong> ${p.nama_lomba}</p>
+                            <p><strong>Jenis:</strong> ${p.jenis_prestasi || '-'}</p>
+                            <p><strong>Tingkat:</strong> ${p.tingkat}</p>
+                            <p><strong>Peringkat:</strong> ${p.peringkat}</p>
+                            <p><strong>Tanggal:</strong> ${formatDate(p.tanggal)}</p>
+                            <p><strong>Penyelenggara:</strong> ${p.penyelenggara || '-'}</p>
+                            ${p.deskripsi ? `<p><strong>Deskripsi:</strong> ${p.deskripsi}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showDetailSekolah(id) {
+            console.log('showDetailSekolah called with id:', id, 'dataSekolah:', dataSekolah);
+            const p = dataSekolah.find(x => Number(x.id) === Number(id));
+            if (!p) {
+                console.error('Data not found for id:', id);
+                alert('Data tidak ditemukan');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h2 class="text-2xl font-bold">${p.nama_prestasi}</h2>
+                            <button onclick="this.closest('.fixed').remove()" class="text-2xl">&times;</button>
+                        </div>
+                        ${p.foto_bukti ? `
+                            <div class="mb-4">
+                                <img src="uploads/${p.foto_bukti}" alt="Foto" class="w-full max-h-64 object-contain rounded-lg cursor-pointer" onclick="openLightbox('uploads/${p.foto_bukti}')">
+                                <p class="text-center text-sm text-gray-500 mt-1">Klik foto untuk memperbesar</p>
+                            </div>
+                        ` : ''}
+                        <div class="space-y-3">
+                            <p><strong>Prestasi:</strong> ${p.nama_prestasi}</p>
+                            <p><strong>Kategori:</strong> ${p.kategori || '-'}</p>
+                            <p><strong>Tingkat:</strong> ${p.tingkat}</p>
+                            <p><strong>Peringkat:</strong> ${p.peringkat === 'akreditasi' || p.peringkat === 'sertifikasi' ? p.peringkat.toUpperCase() : 'JUARA ' + p.peringkat}</p>
+                            <p><strong>Tanggal:</strong> ${formatDate(p.tanggal)}</p>
+                            <p><strong>Penyelenggara:</strong> ${p.penyelenggara || '-'}</p>
+                            ${p.deskripsi ? `<p><strong>Deskripsi:</strong> ${p.deskripsi}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showDetailAlumni(id) {
+            console.log('showDetailAlumni called with id:', id, 'dataAlumni:', dataAlumni);
+            const a = dataAlumni.find(x => Number(x.id) === Number(id));
+            if (!a) {
+                console.error('Data not found for id:', id);
+                alert('Data tidak ditemukan');
+                return;
+            }
+            
+            const jenisLabels = { 'ptn': 'PTN', 'pts': 'PTS', 'kerja': 'Bekerja' };
+            const jenis = a.jenis || 'ptn';
+            const label = jenisLabels[jenis] || jenis;
+            const namaTujuan = jenis === 'kerja' ? (a.nama_perusahaan || '-') : (a.nama_perguruan || '-');
+            
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h2 class="text-2xl font-bold">${a.nama_siswa}</h2>
+                            <button onclick="this.closest('.fixed').remove()" class="text-2xl">&times;</button>
+                        </div>
+                        ${a.foto ? `
+                            <div class="mb-4">
+                                <img src="uploads/${a.foto}" alt="Foto" class="w-full max-h-64 object-contain rounded-lg cursor-pointer" onclick="openLightbox('uploads/${a.foto}')">
+                                <p class="text-center text-sm text-gray-500 mt-1">Klik foto untuk memperbesar</p>
+                            </div>
+                        ` : ''}
+                        <div class="space-y-3">
+                            <p><strong>Nama:</strong> ${a.nama_siswa}</p>
+                            <p><strong>Kelas:</strong> ${a.kelas}</p>
+                            <p><strong>Tahun Ajaran:</strong> ${a.tahun_ajaran}</p>
+                            <p><strong>Jenis:</strong> ${label}</p>
+                            ${jenis === 'kerja' 
+                                ? `<p><strong>Perusahaan:</strong> ${a.nama_perusahaan || '-'}</p>
+                                   <p><strong>Posisi/Jabatan:</strong> ${a.fakultas || '-'}</p>`
+                                : `<p><strong>Perguruan Tinggi:</strong> ${a.nama_perguruan || '-'}</p>
+                                   <p><strong>Fakultas:</strong> ${a.fakultas || '-'}</p>
+                                   <p><strong>Program Studi:</strong> ${a.prodi || '-'}</p>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
         function formatDate(dateStr) {
             const options = { year: 'numeric', month: 'long', day: 'numeric' };
             return new Date(dateStr).toLocaleDateString('id-ID', options);
@@ -730,6 +861,7 @@
             try {
                 const res = await fetch('api/prestasi_guru.php');
                 const data = await res.json();
+                dataGuru = data;
                 renderPrestasiGuru(data);
             } catch (e) {
                 console.error('Error fetching guru prestasi:', e);
@@ -776,7 +908,12 @@
                         <h3 class="font-bold text-lg text-gray-800 mb-1">${p.nama_lomba}</h3>
                         <p class="text-blue-600 font-semibold">${p.nama_guru}</p>
                         <p class="text-gray-500 text-sm">${p.mapel || 'Guru'} | ${formatDate(p.tanggal)}</p>
-                        <p class="text-gray-600 text-sm mt-2">${p.Penyelenggara || ''}</p>
+                        <p class="text-gray-600 text-sm mt-2">${p.penyelenggara || ''}</p>
+                        <div class="mt-4 flex justify-between items-center">
+                            <button onclick="showDetailGuru(${p.id})" class="text-primary hover:underline text-sm">
+                                Lihat Detail <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -786,6 +923,7 @@
             try {
                 const res = await fetch('api/prestasi_sekolah.php');
                 const data = await res.json();
+                dataSekolah = data;
                 renderPrestasiSekolah(data);
             } catch (e) {
                 console.error('Error fetching sekolah prestasi:', e);
@@ -831,7 +969,12 @@
                         </div>
                         <h3 class="font-bold text-lg text-gray-800 mb-1">${p.nama_prestasi}</h3>
                         <p class="text-gray-500 text-sm">${formatDate(p.tanggal)}</p>
-                        <p class="text-gray-600 text-sm mt-2">${p.Penyelenggara || ''}</p>
+                        <p class="text-gray-600 text-sm mt-2">${p.penyelenggara || ''}</p>
+                        <div class="mt-4 flex justify-between items-center">
+                            <button onclick="showDetailSekolah(${p.id})" class="text-primary hover:underline text-sm">
+                                Lihat Detail <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -859,6 +1002,7 @@
             try {
                 const res = await fetch('api/alumni_ptn.php');
                 const data = await res.json();
+                dataAlumni = data;
                 renderAlumniPTN(data);
             } catch (e) {
                 console.error('Error fetching alumni PTN:', e);
@@ -904,6 +1048,11 @@
                         <p class="text-teal-600 font-semibold">${namaTujuan}</p>
                         <p class="text-gray-500 text-sm">${subtitle}</p>
                         <p class="text-gray-400 text-sm">${a.kelas}</p>
+                        <div class="mt-4 flex justify-between items-center">
+                            <button onclick="showDetailAlumni(${a.id})" class="text-primary hover:underline text-sm">
+                                Lihat Detail <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `}).join('');
