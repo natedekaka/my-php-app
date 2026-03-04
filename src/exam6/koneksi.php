@@ -1,12 +1,13 @@
 <?php
 // koneksi.php - Koneksi Database MySQL
 
-$host = getenv('DB_HOST') ?: 'localhost';
+$host = getenv('DB_HOST') ?: 'db:3306';
 $user = getenv('DB_USER') ?: 'root';
-$password = getenv('DB_PASS') ?: '';
+$password = getenv('DB_PASS') ?: 'rootpass';
 $database = getenv('DB_NAME') ?: 'ujian_online';
+$port = getenv('DB_PORT') ?: '3306';
 
-$conn = new mysqli($host, $user, $password, $database);
+$conn = new mysqli($host, $user, $password, $database, $port);
 
 if ($conn->connect_error) {
     die("Koneksi gagal: " . $conn->connect_error);
