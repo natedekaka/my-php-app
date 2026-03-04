@@ -1,10 +1,9 @@
 <?php
-// tambah_soal.php - Bank Soal dengan Upload Gambar (Secure & Responsive)
+// admin/tambah_soal.php - Bank Soal dengan Upload Gambar (Secure & Responsive)
 
 session_start();
 
-// Security Headers
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: uploads/;");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: ../uploads/;");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 header("Referrer-Policy: strict-origin-when-cross-origin");
@@ -15,13 +14,12 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-// Regenerate CSRF token periodically
 if (!isset($_SESSION['csrf_token_time']) || time() - $_SESSION['csrf_token_time'] > 3600) {
     unset($_SESSION['csrf_token']);
     $_SESSION['csrf_token_time'] = time();
 }
 
-require_once 'koneksi.php';
+require_once '../config/database.php';
 
 function generateCsrfToken() {
     if (empty($_SESSION['csrf_token'])) {
@@ -40,7 +38,7 @@ function sanitizeInput($input) {
 
 function validateFileUpload($file) {
     $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
-    $maxSize = 2 * 1024 * 1024; // 2MB
+    $maxSize = 2 * 1024 * 1024;
     
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     
@@ -63,7 +61,7 @@ function validateFileUpload($file) {
     return ['valid' => true, 'ext' => $ext];
 }
 
-$upload_dir = 'uploads/';
+$upload_dir = '../uploads/';
 if (!is_dir($upload_dir)) {
     mkdir($upload_dir, 0755, true);
 }
@@ -76,7 +74,7 @@ function uploadGambar($file, $prefix) {
     
     $ext = $validation['ext'];
     $filename = $prefix . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
-    $target = 'uploads/' . $filename;
+    $target = '../uploads/' . $filename;
     
     if (move_uploaded_file($file['tmp_name'], $target)) {
         return ['success' => $filename];
@@ -85,8 +83,8 @@ function uploadGambar($file, $prefix) {
 }
 
 function hapusGambar($filename) {
-    if ($filename && file_exists('uploads/' . $filename)) {
-        unlink('uploads/' . $filename);
+    if ($filename && file_exists('../uploads/' . $filename)) {
+        unlink('../uploads/' . $filename);
     }
 }
 
@@ -728,7 +726,7 @@ $csrf_token = $_SESSION['csrf_token'];
             <h5><i class="bi bi-mortarboard-fill me-2"></i>Admin Panel</h5>
         </div>
         <div class="sidebar-menu">
-            <a href="admin_dashboard.php"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
+            <a href="index.php"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
             <a href="tambah_soal.php" class="active"><i class="bi bi-question-circle-fill"></i> Bank Soal</a>
             <a href="rekap_nilai.php"><i class="bi bi-bar-chart-fill"></i> Rekap Nilai</a>
             <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right"></i> Logout (<?= htmlspecialchars($_SESSION['admin_username']) ?>)</a>
@@ -812,7 +810,7 @@ $csrf_token = $_SESSION['csrf_token'];
                         </div>
                         <?php if ($edit_soal && $edit_soal['gambar_pertanyaan']): ?>
                             <div class="mt-2">
-                                <img src="uploads/<?= $edit_soal['gambar_pertanyaan'] ?>" class="preview-img" alt="Gambar Pertanyaan">
+                                <img src="../uploads/<?= $edit_soal['gambar_pertanyaan'] ?>" class="preview-img" alt="Gambar Pertanyaan">
                                 <small class="text-muted d-block">Gambar sudah ada</small>
                             </div>
                         <?php endif; ?>
@@ -830,7 +828,7 @@ $csrf_token = $_SESSION['csrf_token'];
                                     </div>
                                 </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_a']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_a'] ?>" class="gambar-preview" alt="Gambar A">
+                                    <img src="../uploads/<?= $edit_soal['gambar_a'] ?>" class="gambar-preview" alt="Gambar A">
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -846,7 +844,7 @@ $csrf_token = $_SESSION['csrf_token'];
                                     </div>
                                 </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_b']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_b'] ?>" class="gambar-preview" alt="Gambar B">
+                                    <img src="../uploads/<?= $edit_soal['gambar_b'] ?>" class="gambar-preview" alt="Gambar B">
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -862,7 +860,7 @@ $csrf_token = $_SESSION['csrf_token'];
                                     </div>
                                 </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_c']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_c'] ?>" class="gambar-preview" alt="Gambar C">
+                                    <img src="../uploads/<?= $edit_soal['gambar_c'] ?>" class="gambar-preview" alt="Gambar C">
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -878,7 +876,7 @@ $csrf_token = $_SESSION['csrf_token'];
                                     </div>
                                 </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_d']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_d'] ?>" class="gambar-preview" alt="Gambar D">
+                                    <img src="../uploads/<?= $edit_soal['gambar_d'] ?>" class="gambar-preview" alt="Gambar D">
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -894,7 +892,7 @@ $csrf_token = $_SESSION['csrf_token'];
                                     </div>
                                 </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_e']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_e'] ?>" class="gambar-preview" alt="Gambar E">
+                                    <img src="../uploads/<?= $edit_soal['gambar_e'] ?>" class="gambar-preview" alt="Gambar E">
                                 <?php endif; ?>
                             </div>
                         </div>

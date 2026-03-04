@@ -1,7 +1,7 @@
 <?php
-// ekspor_excel.php - Ekspor ke Excel
+// admin/ekspor_excel.php - Ekspor ke Excel
 
-require_once 'koneksi.php';
+require_once '../config/database.php';
 
 if (!isset($_GET['ujian']) || empty($_GET['ujian'])) {
     die("Parameter tidak valid");

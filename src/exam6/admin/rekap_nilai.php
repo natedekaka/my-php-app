@@ -1,5 +1,5 @@
 <?php
-// rekap_nilai.php - Rekap Nilai
+// admin/rekap_nilai.php - Rekap Nilai
 
 session_start();
 
@@ -12,7 +12,7 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-require_once 'koneksi.php';
+require_once '../config/database.php';
 
 $message = '';
 $message_type = '';
@@ -210,7 +210,7 @@ if (isset($_GET['hapus'])) {
             <h5><i class="bi bi-mortarboard-fill me-2"></i>Admin Panel</h5>
         </div>
         <div class="sidebar-menu">
-            <a href="admin_dashboard.php"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
+            <a href="index.php"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
             <a href="tambah_soal.php"><i class="bi bi-question-circle-fill"></i> Bank Soal</a>
             <a href="rekap_nilai.php" class="active"><i class="bi bi-bar-chart-fill"></i> Rekap Nilai</a>
             <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right"></i> Logout (<?= htmlspecialchars($_SESSION['admin_username']) ?>)</a>

@@ -1,5 +1,5 @@
 <?php
-// logout.php - Logout Admin
+// admin/logout.php - Logout Admin
 
 session_start();
 session_destroy();

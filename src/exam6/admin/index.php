@@ -1,9 +1,8 @@
 <?php
-// admin_dashboard.php - Dashboard Admin (Manajemen Ujian)
+// admin/index.php - Dashboard Admin (Manajemen Ujian)
 
 session_start();
 
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 
@@ -12,7 +11,7 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-require_once 'koneksi.php';
+require_once '../config/database.php';
 
 $message = '';
 $message_type = '';
@@ -232,7 +231,7 @@ if (isset($_GET['edit'])) {
             <h5><i class="bi bi-mortarboard-fill me-2"></i>Admin Panel</h5>
         </div>
         <div class="sidebar-menu">
-            <a href="admin_dashboard.php" class="active"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
+            <a href="index.php" class="active"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
             <a href="tambah_soal.php"><i class="bi bi-question-circle-fill"></i> Bank Soal</a>
             <a href="rekap_nilai.php"><i class="bi bi-bar-chart-fill"></i> Rekap Nilai</a>
             <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right"></i> Logout (<?= htmlspecialchars($_SESSION['admin_username']) ?>)</a>
@@ -256,7 +255,7 @@ if (isset($_GET['edit'])) {
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-<?= $edit_ujian ? 'pencil-square' : 'plus-circle' ?> me-2"></i><?= $edit_ujian ? 'Edit Ujian' : 'Tambah Ujian Baru' ?></span>
                 <?php if ($edit_ujian): ?>
-                <a href="admin_dashboard.php" class="btn btn-sm btn-secondary">
+                <a href="index.php" class="btn btn-sm btn-secondary">
                     <i class="bi bi-x-lg"></i> Batal
                 </a>
                 <?php endif; ?>
@@ -332,11 +331,11 @@ if (isset($_GET['edit'])) {
                                 <td class="text-center text-muted"><?= date('d/m/Y', strtotime($row['tgl_dibuat'])) ?></td>
                                 <td>
                                     <div class="input-group input-group-sm">
-                                        <input type="text" class="form-control" value="<?= 'ujian.php?id=' . $row['id'] ?>" id="link<?= $row['id'] ?>" readonly>
+                                        <input type="text" class="form-control" value="<?= '../ujian.php?id=' . $row['id'] ?>" id="link<?= $row['id'] ?>" readonly>
                                         <button class="btn btn-outline-secondary" type="button" onclick="copyLink(<?= $row['id'] ?>)" title="Copy Link">
                                             <i class="bi bi-clipboard"></i>
                                         </button>
-                                        <a href="ujian.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-outline-primary" title="Buka">
+                                        <a href="../ujian.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-outline-primary" title="Buka">
                                             <i class="bi bi-box-arrow-up-right"></i>
                                         </a>
                                     </div>

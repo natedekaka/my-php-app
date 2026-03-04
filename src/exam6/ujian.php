@@ -1,7 +1,7 @@
 <?php
 // ujian.php - Halaman Ujian Siswa (Tampilan Baru)
 
-require_once 'koneksi.php';
+require_once 'config/database.php';
 
 $message = '';
 $message_type = '';

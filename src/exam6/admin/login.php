@@ -1,14 +1,14 @@
 <?php
-// login.php - Halaman Login Admin
+// admin/login.php - Halaman Login Admin
 
 session_start();
 
-require_once 'koneksi.php';
+require_once '../config/database.php';
 
 $message = '';
 
 if (isset($_SESSION['admin_id'])) {
-    header('Location: admin_dashboard.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['admin_nama'] = $user['nama_lengkap'];
                 $_SESSION['admin_username'] = $user['username'];
                 
-                header('Location: admin_dashboard.php');
+                header('Location: index.php');
                 exit;
             } else {
                 $message = 'Password salah!';

@@ -1,7 +1,7 @@
 <?php
 // index.php - Halaman Depan (List Ujian)
 
-require_once 'koneksi.php';
+require_once 'config/database.php';
 
 $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY tgl_dibuat DESC");
 ?>
