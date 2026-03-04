@@ -1,0 +1,14 @@
+# Prevent directory browsing
+Options -Indexes
+
+# Block access to SQL files
+<FilesMatch "\.(sql)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to config files
+<FilesMatch "\.(env|md|gitignore)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

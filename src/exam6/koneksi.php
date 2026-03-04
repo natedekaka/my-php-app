@@ -1,10 +1,10 @@
 <?php
 // koneksi.php - Koneksi Database MySQL
 
-$host = 'db';
-$user = 'root';
-$password = 'rootpass';
-$database = 'ujian_online';
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$password = getenv('DB_PASS') ?: '';
+$database = getenv('DB_NAME') ?: 'ujian_online';
 
 $conn = new mysqli($host, $user, $password, $database);
 
