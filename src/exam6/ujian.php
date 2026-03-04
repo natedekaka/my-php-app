@@ -109,9 +109,123 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
                 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
                 <style>
                     * { font-family: 'Poppins', sans-serif; }
-                    body { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-                    .card { border: none; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
-                    .skor-box { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 4rem; font-weight: 700; }
+                    body { 
+                        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+                        min-height: 100vh; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center;
+                        overflow: hidden;
+                    }
+                    
+                    body::before {
+                        content: '';
+                        position: absolute;
+                        width: 200%;
+                        height: 200%;
+                        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 50%);
+                        animation: pulse 4s ease-in-out infinite;
+                    }
+                    
+                    @keyframes pulse {
+                        0%, 100% { transform: scale(1); opacity: 0.5; }
+                        50% { transform: scale(1.1); opacity: 0.3; }
+                    }
+                    
+                    .card { 
+                        border: none; 
+                        border-radius: 24px; 
+                        box-shadow: 0 25px 80px rgba(0,0,0,0.25);
+                        position: relative;
+                        overflow: hidden;
+                        animation: slideUp 0.6s ease-out;
+                    }
+                    
+                    @keyframes slideUp {
+                        from { opacity: 0; transform: translateY(30px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    
+                    .success-icon {
+                        width: 120px;
+                        height: 120px;
+                        border-radius: 50%;
+                        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0 auto;
+                        animation: scaleIn 0.5s ease-out 0.3s both;
+                        box-shadow: 0 10px 40px rgba(17, 153, 142, 0.4);
+                    }
+                    
+                    @keyframes scaleIn {
+                        from { transform: scale(0); }
+                        to { transform: scale(1); }
+                    }
+                    
+                    .success-icon i {
+                        font-size: 4rem;
+                        color: white;
+                        animation: checkBounce 0.5s ease-out 0.6s both;
+                    }
+                    
+                    @keyframes checkBounce {
+                        from { transform: scale(0) rotate(-45deg); }
+                        50% { transform: scale(1.2) rotate(0deg); }
+                        to { transform: scale(1) rotate(0deg); }
+                    }
+                    
+                    .skor-box { 
+                        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+                        -webkit-background-clip: text; 
+                        -webkit-text-fill-color: transparent; 
+                        font-size: 5rem; 
+                        font-weight: 700; 
+                        animation: countUp 1s ease-out 0.8s both;
+                    }
+                    
+                    @keyframes countUp {
+                        from { opacity: 0; transform: translateY(20px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    
+                    .info-card {
+                        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                        border-radius: 16px;
+                        padding: 20px;
+                        animation: slideUp 0.6s ease-out 0.5s both;
+                    }
+                    
+                    .btn-home {
+                        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                        border: none;
+                        padding: 15px 40px;
+                        border-radius: 30px;
+                        font-weight: 600;
+                        font-size: 1.1rem;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 10px 30px rgba(17, 153, 142, 0.3);
+                        animation: slideUp 0.6s ease-out 1s both;
+                    }
+                    
+                    .btn-home:hover {
+                        transform: translateY(-3px);
+                        box-shadow: 0 15px 40px rgba(17, 153, 142, 0.4);
+                    }
+                    
+                    .confetti {
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 50%;
+                        animation: fall 3s ease-in-out infinite;
+                    }
+                    
+                    @keyframes fall {
+                        0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+                        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+                    }
                 </style>
             </head>
             <body>
@@ -119,23 +233,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
                     <div class="row justify-content-center">
                         <div class="col-md-6">
                             <div class="card p-5 text-center">
-                                <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
-                                <h2 class="mt-4 fw-bold">Terima Kasih!</h2>
-                                <p class="text-muted">Jawaban Anda telah disubmit.</p>
+                                <!-- Confetti -->
+                                <div class="confetti" style="left: 10%; background: #ff6b6b; animation-delay: 0s;"></div>
+                                <div class="confetti" style="left: 30%; background: #ffd93d; animation-delay: 0.5s;"></div>
+                                <div class="confetti" style="left: 50%; background: #6bcb77; animation-delay: 1s;"></div>
+                                <div class="confetti" style="left: 70%; background: #4d96ff; animation-delay: 1.5s;"></div>
+                                <div class="confetti" style="left: 90%; background: #ff6b6b; animation-delay: 2s;"></div>
                                 
-                                <div class="my-4">
-                                    <p class="text-muted mb-1">Skor Anda</p>
+                                <div class="success-icon mb-4">
+                                    <i class="bi bi-check-lg"></i>
+                                </div>
+                                
+                                <h2 class="fw-bold mb-2" style="animation: slideUp 0.6s ease-out 0.4s both;">Selamat!</h2>
+                                <p class="text-muted mb-4" style="animation: slideUp 0.6s ease-out 0.5s both;">Jawaban Anda telah berhasil disubmit</p>
+                                
+                                <div class="my-4" style="animation: slideUp 0.6s ease-out 0.6s both;">
+                                    <p class="text-muted mb-2 fw-medium">Total Skor Anda</p>
                                     <div class="skor-box"><?= $total_skor ?></div>
                                 </div>
                                 
-                                <div class="bg-light rounded p-3 mb-4">
-                                    <p class="mb-1"><strong><?= htmlspecialchars($nama) ?></strong></p>
-                                    <p class="mb-1 text-muted">NIS: <?= htmlspecialchars($nis) ?></p>
-                                    <p class="mb-0 text-muted">Kelas: <?= htmlspecialchars($kelas) ?></p>
+                                <div class="info-card mb-4">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <p class="mb-2"><strong class="fs-5"><?= htmlspecialchars($nama) ?></strong></p>
+                                        </div>
+                                        <div class="col-6 text-start">
+                                            <p class="mb-0 text-muted small">NIS</p>
+                                            <p class="mb-0 fw-semibold"><?= htmlspecialchars($nis) ?></p>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            <p class="mb-0 text-muted small">Kelas</p>
+                                            <p class="mb-0 fw-semibold"><?= htmlspecialchars($kelas) ?></p>
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <a href="index.php" class="btn btn-success">
-                                    <i class="bi bi-house-door me-2"></i>Halaman Utama
+                                <a href="index.php" class="btn btn-home text-white">
+                                    <i class="bi bi-house-door me-2"></i>Kembali ke Halaman Utama
                                 </a>
                             </div>
                         </div>
@@ -292,6 +426,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
             margin-left: 10px;
             object-fit: contain;
         }
+
+        /* Custom Modal Styles */
+        .modal-confirm {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-confirm .modal-header {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .modal-confirm .modal-body {
+            padding: 20px 30px;
+        }
+
+        .modal-confirm .modal-footer {
+            border-top: none;
+            padding: 0 30px 30px;
+            justify-content: center;
+        }
+
+        .confirm-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .confirm-icon i {
+            font-size: 2.5rem;
+            color: white;
+        }
+
+        .btn-confirm-submit {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-confirm-submit:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 500;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Progress indicator */
+        .progress-indicator {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .progress-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+        }
+
+        .progress-text {
+            font-weight: 500;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -391,12 +624,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
 
             <!-- Submit -->
             <div class="text-center mb-5">
-                <button type="submit" name="submit_ujian" class="btn btn-primary btn-submit text-white" 
-                        onclick="return confirm('Apakah Anda yakin ingin Submit jawaban?')">
+                <button type="button" class="btn btn-primary btn-submit text-white" data-bs-toggle="modal" data-bs-target="#confirmModal">
                     <i class="bi bi-send-fill me-2"></i>Kirim Jawaban
                 </button>
             </div>
         </form>
+
+        <!-- Confirmation Modal -->
+        <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content modal-confirm">
+                    <div class="modal-header justify-content-center pt-4">
+                        <div class="confirm-icon">
+                            <i class="bi bi-send-fill"></i>
+                        </div>
+                    </div>
+                    <div class="modal-body text-center text-white">
+                        <h4 class="fw-bold mb-2">Kirim Jawaban?</h4>
+                        <p class="mb-0 opacity-75">Pastikan semua jawaban telah diisi. Jawaban yang sudah dikirim tidak dapat diubah.</p>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">
+                            <i class="bi bi-arrow-left me-1"></i> Periksa Lagi
+                        </button>
+                        <button type="submit" form="formUjian" name="submit_ujian" class="btn btn-confirm-submit">
+                            <i class="bi bi-check-lg me-1"></i> Ya, Kirim!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="progress-indicator" id="progressIndicator">
+            <div class="progress-circle">
+                <span id="answeredCount">0</span>/<span id="totalSoal"><?= count($soal_list) ?></span>
+            </div>
+            <div class="progress-text">
+                <div class="fw-bold">Soal Terjawab</div>
+                <small class="text-muted" id="progressPercent">0%</small>
+            </div>
+        </div>
         
         <footer class="text-center text-muted py-4">
             <small>&copy; <?= date('Y') ?> Sistem Ujian Online</small>
@@ -404,5 +672,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Progress indicator
+        const radioButtons = document.querySelectorAll('input[type="radio"]');
+        const answeredCount = document.getElementById('answeredCount');
+        const totalSoal = document.getElementById('totalSoal');
+        const progressPercent = document.getElementById('progressPercent');
+        
+        function updateProgress() {
+            const answered = new Set();
+            radioButtons.forEach(radio => {
+                if (radio.checked) {
+                    answered.add(radio.name);
+                }
+            });
+            
+            const total = parseInt(totalSoal.textContent);
+            const count = answered.size;
+            const percent = Math.round((count / total) * 100);
+            
+            answeredCount.textContent = count;
+            progressPercent.textContent = percent + '%';
+            
+            // Update circle gradient based on progress
+            const circle = document.querySelector('.progress-circle');
+            if (percent === 100) {
+                circle.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+            } else if (percent >= 50) {
+                circle.style.background = 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)';
+            } else {
+                circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        }
+        
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', updateProgress);
+        });
+        
+        // Hide progress indicator on mobile
+        if (window.innerWidth < 768) {
+            document.getElementById('progressIndicator').style.display = 'none';
+        }
+    </script>
 </body>
 </html>

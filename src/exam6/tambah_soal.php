@@ -1,13 +1,67 @@
 <?php
-// tambah_soal.php - Bank Soal dengan Upload Gambar
+// tambah_soal.php - Bank Soal dengan Upload Gambar (Secure & Responsive)
 
 session_start();
+
+// Security Headers
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: uploads/;");
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
+
 if (!isset($_SESSION['admin_id'])) {
     header('Location: login.php');
     exit;
 }
 
+// Regenerate CSRF token periodically
+if (!isset($_SESSION['csrf_token_time']) || time() - $_SESSION['csrf_token_time'] > 3600) {
+    unset($_SESSION['csrf_token']);
+    $_SESSION['csrf_token_time'] = time();
+}
+
 require_once 'koneksi.php';
+
+function generateCsrfToken() {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function validateCsrfToken($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function sanitizeInput($input) {
+    return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
+}
+
+function validateFileUpload($file) {
+    $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
+    $maxSize = 2 * 1024 * 1024; // 2MB
+    
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    
+    if ($file['size'] > $maxSize) {
+        return ['error' => 'File terlalu besar. Maksimal 2MB'];
+    }
+    
+    if (!isset($allowed[$ext])) {
+        return ['error' => 'Format file tidak diizinkan'];
+    }
+    
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    
+    if (!in_array($mime, $allowed)) {
+        return ['error' => 'Tipe file tidak valid'];
+    }
+    
+    return ['valid' => true, 'ext' => $ext];
+}
 
 $upload_dir = 'uploads/';
 if (!is_dir($upload_dir)) {
@@ -15,20 +69,19 @@ if (!is_dir($upload_dir)) {
 }
 
 function uploadGambar($file, $prefix) {
-    if ($file['error'] === UPLOAD_ERR_OK) {
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (in_array($ext, $allowed)) {
-            $filename = $prefix . '_' . time() . '.' . $ext;
-            $target = 'uploads/' . $filename;
-            
-            if (move_uploaded_file($file['tmp_name'], $target)) {
-                return $filename;
-            }
-        }
+    $validation = validateFileUpload($file);
+    if (isset($validation['error'])) {
+        return ['error' => $validation['error']];
     }
-    return null;
+    
+    $ext = $validation['ext'];
+    $filename = $prefix . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+    $target = 'uploads/' . $filename;
+    
+    if (move_uploaded_file($file['tmp_name'], $target)) {
+        return ['success' => $filename];
+    }
+    return ['error' => 'Gagal upload file'];
 }
 
 function hapusGambar($filename) {
@@ -36,6 +89,8 @@ function hapusGambar($filename) {
         unlink('uploads/' . $filename);
     }
 }
+
+generateCsrfToken();
 
 $message = '';
 $message_type = '';
@@ -48,98 +103,163 @@ if ($selected_ujian > 0) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_soal'])) {
-    $id_ujian = (int)$_POST['id_ujian'];
-    $pertanyaan = trim($_POST['pertanyaan']);
-    $opsi_a = trim($_POST['opsi_a']);
-    $opsi_b = trim($_POST['opsi_b']);
-    $opsi_c = trim($_POST['opsi_c']);
-    $opsi_d = trim($_POST['opsi_d']);
-    $opsi_e = trim($_POST['opsi_e']);
-    $kunci = $_POST['kunci_jawaban'];
-    $poin = (int)$_POST['poin'];
-    $edit_id = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
-    
-    $gambar_pertanyaan = null;
-    $gambar_a = null;
-    $gambar_b = null;
-    $gambar_c = null;
-    $gambar_d = null;
-    $gambar_e = null;
-    
-    if ($edit_id > 0) {
-        $stmt = $conn->prepare("SELECT * FROM soal WHERE id = ?");
-        $stmt->bind_param("i", $edit_id);
-        $stmt->execute();
-        $old_soal = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        
-        $gambar_pertanyaan = $old_soal['gambar_pertanyaan'] ?? null;
-        $gambar_a = $old_soal['gambar_a'] ?? null;
-        $gambar_b = $old_soal['gambar_b'] ?? null;
-        $gambar_c = $old_soal['gambar_c'] ?? null;
-        $gambar_d = $old_soal['gambar_d'] ?? null;
-        $gambar_e = $old_soal['gambar_e'] ?? null;
-    }
-    
-    if (!empty($_FILES['gambar_pertanyaan']['name'])) {
-        $gambar_pertanyaan = uploadGambar($_FILES['gambar_pertanyaan'], 'soal');
-    }
-    if (!empty($_FILES['gambar_a']['name'])) {
-        $gambar_a = uploadGambar($_FILES['gambar_a'], 'opsia');
-    }
-    if (!empty($_FILES['gambar_b']['name'])) {
-        $gambar_b = uploadGambar($_FILES['gambar_b'], 'opsib');
-    }
-    if (!empty($_FILES['gambar_c']['name'])) {
-        $gambar_c = uploadGambar($_FILES['gambar_c'], 'opsic');
-    }
-    if (!empty($_FILES['gambar_d']['name'])) {
-        $gambar_d = uploadGambar($_FILES['gambar_d'], 'opsid');
-    }
-    if (!empty($_FILES['gambar_e']['name'])) {
-        $gambar_e = uploadGambar($_FILES['gambar_e'], 'opsie');
-    }
-    
-    if ($edit_id > 0) {
-        $stmt = $conn->prepare("UPDATE soal SET pertanyaan=?, gambar_pertanyaan=?, opsi_a=?, gambar_a=?, opsi_b=?, gambar_b=?, opsi_c=?, gambar_c=?, opsi_d=?, gambar_d=?, opsi_e=?, gambar_e=?, kunci_jawaban=?, poin=? WHERE id=?");
-        $stmt->bind_param("sssssssssssssii", $pertanyaan, $gambar_pertanyaan, $opsi_a, $gambar_a, $opsi_b, $gambar_b, $opsi_c, $gambar_c, $opsi_d, $gambar_d, $opsi_e, $gambar_e, $kunci, $poin, $edit_id);
-        $message = "Soal berhasil diperbarui!";
+    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+        $message = 'Token keamanan tidak valid';
+        $message_type = 'danger';
     } else {
-        $stmt = $conn->prepare("INSERT INTO soal (id_ujian, pertanyaan, gambar_pertanyaan, opsi_a, gambar_a, opsi_b, gambar_b, opsi_c, gambar_c, opsi_d, gambar_d, opsi_e, gambar_e, kunci_jawaban, poin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("isssssssssssssi", $id_ujian, $pertanyaan, $gambar_pertanyaan, $opsi_a, $gambar_a, $opsi_b, $gambar_b, $opsi_c, $gambar_c, $opsi_d, $gambar_d, $opsi_e, $gambar_e, $kunci, $poin);
-        $message = "Soal berhasil ditambahkan!";
+        $id_ujian = (int)$_POST['id_ujian'];
+        $pertanyaan = trim($_POST['pertanyaan']);
+        $opsi_a = trim($_POST['opsi_a']);
+        $opsi_b = trim($_POST['opsi_b']);
+        $opsi_c = trim($_POST['opsi_c']);
+        $opsi_d = trim($_POST['opsi_d']);
+        $opsi_e = trim($_POST['opsi_e']);
+        $kunci = in_array($_POST['kunci_jawaban'], ['a','b','c','d','e']) ? $_POST['kunci_jawaban'] : 'a';
+        $poin = max(1, (int)$_POST['poin']);
+        $edit_id = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
+        
+        if (empty($pertanyaan) || empty($opsi_a) || empty($opsi_b) || empty($opsi_c) || empty($opsi_d) || empty($opsi_e)) {
+            $message = 'Semua field wajib diisi';
+            $message_type = 'danger';
+        } else {
+            $gambar_pertanyaan = null;
+            $gambar_a = null;
+            $gambar_b = null;
+            $gambar_c = null;
+            $gambar_d = null;
+            $gambar_e = null;
+            
+            if ($edit_id > 0) {
+                $stmt = $conn->prepare("SELECT * FROM soal WHERE id = ? AND id_ujian IN (SELECT id FROM ujian WHERE id_admin = ?)");
+                $stmt->bind_param("ii", $edit_id, $_SESSION['admin_id']);
+                $stmt->execute();
+                $old_soal = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                
+                if (!$old_soal) {
+                    $message = 'Soal tidak ditemukan';
+                    $message_type = 'danger';
+                } else {
+                    $gambar_pertanyaan = $old_soal['gambar_pertanyaan'] ?? null;
+                    $gambar_a = $old_soal['gambar_a'] ?? null;
+                    $gambar_b = $old_soal['gambar_b'] ?? null;
+                    $gambar_c = $old_soal['gambar_c'] ?? null;
+                    $gambar_d = $old_soal['gambar_d'] ?? null;
+                    $gambar_e = $old_soal['gambar_e'] ?? null;
+                }
+            }
+            
+            if (empty($message)) {
+                if (!empty($_FILES['gambar_pertanyaan']['name'])) {
+                    $result = uploadGambar($_FILES['gambar_pertanyaan'], 'soal');
+                    if (isset($result['error'])) {
+                        $message = $result['error'];
+                        $message_type = 'danger';
+                    } else {
+                        $gambar_pertanyaan = $result['success'];
+                    }
+                }
+                
+                if (empty($message) && !empty($_FILES['gambar_a']['name'])) {
+                    $result = uploadGambar($_FILES['gambar_a'], 'opsia');
+                    if (isset($result['error'])) {
+                        $message = $result['error'];
+                        $message_type = 'danger';
+                    } else {
+                        $gambar_a = $result['success'];
+                    }
+                }
+                
+                if (empty($message) && !empty($_FILES['gambar_b']['name'])) {
+                    $result = uploadGambar($_FILES['gambar_b'], 'opsib');
+                    if (isset($result['error'])) {
+                        $message = $result['error'];
+                        $message_type = 'danger';
+                    } else {
+                        $gambar_b = $result['success'];
+                    }
+                }
+                
+                if (empty($message) && !empty($_FILES['gambar_c']['name'])) {
+                    $result = uploadGambar($_FILES['gambar_c'], 'opsic');
+                    if (isset($result['error'])) {
+                        $message = $result['error'];
+                        $message_type = 'danger';
+                    } else {
+                        $gambar_c = $result['success'];
+                    }
+                }
+                
+                if (empty($message) && !empty($_FILES['gambar_d']['name'])) {
+                    $result = uploadGambar($_FILES['gambar_d'], 'opsid');
+                    if (isset($result['error'])) {
+                        $message = $result['error'];
+                        $message_type = 'danger';
+                    } else {
+                        $gambar_d = $result['success'];
+                    }
+                }
+                
+                if (empty($message) && !empty($_FILES['gambar_e']['name'])) {
+                    $result = uploadGambar($_FILES['gambar_e'], 'opsie');
+                    if (isset($result['error'])) {
+                        $message = $result['error'];
+                        $message_type = 'danger';
+                    } else {
+                        $gambar_e = $result['success'];
+                    }
+                }
+            }
+            
+            if (empty($message)) {
+                if ($edit_id > 0) {
+                    $stmt = $conn->prepare("UPDATE soal SET pertanyaan=?, gambar_pertanyaan=?, opsi_a=?, gambar_a=?, opsi_b=?, gambar_b=?, opsi_c=?, gambar_c=?, opsi_d=?, gambar_d=?, opsi_e=?, gambar_e=?, kunci_jawaban=?, poin=? WHERE id=?");
+                    $stmt->bind_param("sssssssssssssii", $pertanyaan, $gambar_pertanyaan, $opsi_a, $gambar_a, $opsi_b, $gambar_b, $opsi_c, $gambar_c, $opsi_d, $gambar_d, $opsi_e, $gambar_e, $kunci, $poin, $edit_id);
+                    $message = "Soal berhasil diperbarui!";
+                } else {
+                    $stmt = $conn->prepare("INSERT INTO soal (id_ujian, pertanyaan, gambar_pertanyaan, opsi_a, gambar_a, opsi_b, gambar_b, opsi_c, gambar_c, opsi_d, gambar_d, opsi_e, gambar_e, kunci_jawaban, poin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("isssssssssssssi", $id_ujian, $pertanyaan, $gambar_pertanyaan, $opsi_a, $gambar_a, $opsi_b, $gambar_b, $opsi_c, $gambar_c, $opsi_d, $gambar_d, $opsi_e, $gambar_e, $kunci, $poin);
+                    $message = "Soal berhasil ditambahkan!";
+                }
+                
+                if ($stmt->execute()) {
+                    $message_type = 'success';
+                }
+                $stmt->close();
+            }
+        }
     }
-    
-    if ($stmt->execute()) {
-        $message_type = 'success';
-    }
-    $stmt->close();
 }
 
-if (isset($_GET['hapus'])) {
+if (isset($_GET['hapus']) && isset($_GET['token'])) {
     $id = (int)$_GET['hapus'];
     
-    $stmt = $conn->prepare("SELECT * FROM soal WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $soal = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    
-    if ($soal) {
-        hapusGambar($soal['gambar_pertanyaan']);
-        hapusGambar($soal['gambar_a']);
-        hapusGambar($soal['gambar_b']);
-        hapusGambar($soal['gambar_c']);
-        hapusGambar($soal['gambar_d']);
-        hapusGambar($soal['gambar_e']);
-        
-        $stmt = $conn->prepare("DELETE FROM soal WHERE id = ?");
-        $stmt->bind_param("i", $id);
-        if ($stmt->execute()) {
-            $message = "Soal berhasil dihapus!";
-            $message_type = 'success';
-        }
+    if (!validateCsrfToken($_GET['token'])) {
+        $message = 'Token keamanan tidak valid';
+        $message_type = 'danger';
+    } else {
+        $stmt = $conn->prepare("SELECT s.* FROM soal s JOIN ujian u ON s.id_ujian = u.id WHERE s.id = ? AND u.id_admin = ?");
+        $stmt->bind_param("ii", $id, $_SESSION['admin_id']);
+        $stmt->execute();
+        $soal = $stmt->get_result()->fetch_assoc();
         $stmt->close();
+        
+        if ($soal) {
+            hapusGambar($soal['gambar_pertanyaan']);
+            hapusGambar($soal['gambar_a']);
+            hapusGambar($soal['gambar_b']);
+            hapusGambar($soal['gambar_c']);
+            hapusGambar($soal['gambar_d']);
+            hapusGambar($soal['gambar_e']);
+            
+            $stmt = $conn->prepare("DELETE FROM soal WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            if ($stmt->execute()) {
+                $message = "Soal berhasil dihapus!";
+                $message_type = 'success';
+            }
+            $stmt->close();
+        }
     }
 }
 
@@ -158,8 +278,8 @@ if ($selected_ujian > 0) {
 $edit_soal = null;
 if (isset($_GET['edit'])) {
     $id = (int)$_GET['edit'];
-    $stmt = $conn->prepare("SELECT * FROM soal WHERE id = ?");
-    $stmt->bind_param("i", $id);
+    $stmt = $conn->prepare("SELECT s.* FROM soal s JOIN ujian u ON s.id_ujian = u.id WHERE s.id = ? AND u.id_admin = ?");
+    $stmt->bind_param("ii", $id, $_SESSION['admin_id']);
     $stmt->execute();
     $edit_result = $stmt->get_result();
     $edit_soal = $edit_result->fetch_assoc();
@@ -168,6 +288,8 @@ if (isset($_GET['edit'])) {
         $selected_ujian = $edit_soal['id_ujian'];
     }
 }
+
+$csrf_token = $_SESSION['csrf_token'];
 ?>
 
 <!DOCTYPE html>
@@ -175,147 +297,611 @@ if (isset($_GET['edit'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Bank Soal - Manajemen Ujian Online">
     <title>Bank Soal</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .sidebar { min-height: 100vh; background: #2c3e50; }
-        .sidebar a { color: #fff; text-decoration: none; padding: 15px 20px; display: block; }
-        .sidebar a:hover, .sidebar a.active { background: #34495e; }
-        .preview-img { max-width: 150px; max-height: 100px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
-        .gambar-preview { max-width: 80px; max-height: 60px; object-fit: contain; }
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+            --sidebar-width: 260px;
+        }
+        
+        * { font-family: 'Inter', sans-serif; }
+        
+        body { 
+            background-color: #f1f5f9; 
+            min-height: 100vh;
+        }
+        
+        .sidebar { 
+            width: var(--sidebar-width); 
+            min-height: 100vh; 
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-brand {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-brand h5 {
+            color: #fff;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .sidebar-menu {
+            padding: 1rem 0;
+        }
+        
+        .sidebar a { 
+            color: rgba(255,255,255,0.7); 
+            text-decoration: none; 
+            padding: 0.875rem 1.5rem; 
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+            font-size: 0.9375rem;
+        }
+        
+        .sidebar a:hover { 
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+        
+        .sidebar a.active { 
+            background: rgba(79, 70, 229, 0.2);
+            color: #fff;
+            border-left-color: var(--primary);
+        }
+        
+        .sidebar a i {
+            font-size: 1.125rem;
+            width: 1.5rem;
+            text-align: center;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .page-header h3 {
+            margin: 0;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .form-control, .form-select {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.625rem 0.875rem;
+            font-size: 0.9375rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .btn {
+            border-radius: 8px;
+            padding: 0.625rem 1.25rem;
+            font-weight: 500;
+            font-size: 0.9375rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            border-color: var(--warning);
+            color: #fff;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table thead th {
+            background: #f8fafc;
+            border-bottom: 2px solid var(--border);
+            color: var(--secondary);
+            font-weight: 600;
+            font-size: 0.8125rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+        
+        .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .table tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        .badge {
+            font-weight: 500;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+        }
+        
+        .preview-img { 
+            max-width: 120px; 
+            max-height: 80px; 
+            object-fit: contain; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+        }
+        
+        .gambar-preview { 
+            max-width: 60px; 
+            max-height: 50px; 
+            object-fit: contain; 
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+        
+        .file-upload-wrapper {
+            position: relative;
+        }
+        
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 0.875rem;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            color: var(--secondary);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .file-upload-wrapper:hover .file-upload-label {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(79, 70, 229, 0.02);
+        }
+        
+        .opsi-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .opsi-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .opsi-label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-right: 0.5rem;
+        }
+        
+        .opsi-a { background: #dbeafe; color: #1d4ed8; }
+        .opsi-b { background: #dcfce7; color: #15803d; }
+        .opsi-c { background: #fef3c7; color: #b45309; }
+        .opsi-d { background: #fce7f3; color: #be185d; }
+        .opsi-e { background: #e0e7ff; color: #4338ca; }
+        
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.625rem;
+            font-size: 1.25rem;
+        }
+        
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+        }
+        
+        .toast {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 4rem 1rem 1rem;
+            }
+            
+            .mobile-toggle {
+                display: flex;
+            }
+            
+            .overlay.show {
+                display: block;
+            }
+            
+            .page-header {
+                padding: 1rem;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .table-responsive {
+                border-radius: 8px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .opsi-card {
+                padding: 0.75rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            
+            .btn:last-child {
+                margin-bottom: 0;
+            }
+            
+            .page-header .btn {
+                width: auto;
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .question-box {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .question-box:hover {
+            border-color: var(--primary);
+        }
     </style>
 </head>
 <body>
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-2 sidebar p-0">
-            <div class="p-3 text-center border-bottom">
-                <h5 class="text-white mb-0"><i class="bi bi-mortarboard-fill"></i> Admin</h5>
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+    
+    <div class="overlay" onclick="toggleSidebar()"></div>
+
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <h5><i class="bi bi-mortarboard-fill me-2"></i>Admin Panel</h5>
+        </div>
+        <div class="sidebar-menu">
+            <a href="admin_dashboard.php"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
+            <a href="tambah_soal.php" class="active"><i class="bi bi-question-circle-fill"></i> Bank Soal</a>
+            <a href="rekap_nilai.php"><i class="bi bi-bar-chart-fill"></i> Rekap Nilai</a>
+            <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right"></i> Logout (<?= htmlspecialchars($_SESSION['admin_username']) ?>)</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header animate-fade-in">
+            <h3><i class="bi bi-journal-text me-2"></i>Bank Soal</h3>
+            <?php if ($selected_ujian > 0): ?>
+            <span class="badge bg-primary fs-6"><?= count($soal_list) ?> soal</span>
+            <?php endif; ?>
+        </div>
+        
+        <?php if ($message): ?>
+        <div class="toast-container">
+            <div class="toast show" role="alert" data-bs-delay="5000">
+                <div class="toast-header bg-<?= $message_type ?> text-white">
+                    <i class="bi bi-<?= $message_type === 'success' ? 'check-circle' : 'exclamation-circle' ?>-fill me-2"></i>
+                    <strong class="me-auto"><?= $message_type === 'success' ? 'Berhasil' : 'Peringatan' ?></strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <?= htmlspecialchars($message) ?>
+                </div>
             </div>
-            <a href="admin_dashboard.php"><i class="bi bi-grid-1x2-fill me-2"></i> Manajemen Ujian</a>
-            <a href="tambah_soal.php" class="active"><i class="bi bi-question-circle-fill me-2"></i> Bank Soal</a>
-            <a href="rekap_nilai.php"><i class="bi bi-bar-chart-fill me-2"></i> Rekap Nilai</a>
-            <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right me-2"></i> Logout (<?= $_SESSION['admin_username'] ?>)</a>
+        </div>
+        <?php endif; ?>
+
+        <div class="card animate-fade-in">
+            <div class="card-body">
+                <form method="GET" class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label"><i class="bi bi-file-earmark-text me-1"></i>Pilih Ujian</label>
+                        <select name="ujian" class="form-select" onchange="this.form.submit()">
+                            <option value="">-- Pilih Ujian --</option>
+                            <?php 
+                            $ujian_list->data_seek(0);
+                            while ($ujian = $ujian_list->fetch_assoc()): 
+                            ?>
+                            <option value="<?= $ujian['id'] ?>" <?= $selected_ujian == $ujian['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($ujian['judul_ujian']) ?> (<?= $ujian['status'] ?>)
+                            </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="col-md-10 p-4">
-            <h3 class="mb-4">Bank Soal</h3>
-            
-            <?php if ($message): ?>
-                <div class="alert alert-<?= $message_type === 'success' ? 'success' : 'danger' ?> alert-dismissible fade show">
-                    <?= $message ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            <?php endif; ?>
-
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-8">
-                            <label class="form-label">Pilih Ujian</label>
-                            <select name="ujian" class="form-select" onchange="this.form.submit()">
-                                <option value="">-- Pilih Ujian --</option>
-                                <?php 
-                                $ujian_list->data_seek(0);
-                                while ($ujian = $ujian_list->fetch_assoc()): 
-                                ?>
-                                <option value="<?= $ujian['id'] ?>" <?= $selected_ujian == $ujian['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($ujian['judul_ujian']) ?> (<?= $ujian['status'] ?>)
-                                </option>
-                                <?php endwhile; ?>
-                            </select>
-                        </div>
-                    </form>
-                </div>
+        <?php if ($selected_ujian > 0): ?>
+        
+        <div class="card animate-fade-in">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-<?= $edit_soal ? 'pencil-square' : 'plus-circle' ?> me-2"></i><?= $edit_soal ? 'Edit Soal' : 'Tambah Soal Baru' ?></span>
+                <?php if ($edit_soal): ?>
+                <a href="tambah_soal.php?ujian=<?= $selected_ujian ?>" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-x-lg"></i> Batal
+                </a>
+                <?php endif; ?>
             </div>
-
-            <?php if ($selected_ujian > 0): ?>
-            
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><?= $edit_soal ? 'Edit Soal' : 'Tambah Soal Baru' ?></h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
-                        <?php if ($edit_soal): ?>
-                            <input type="hidden" name="edit_id" value="<?= $edit_soal['id'] ?>">
-                        <?php else: ?>
-                            <input type="hidden" name="id_ujian" value="<?= $selected_ujian ?>">
-                        <?php endif; ?>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="soalForm" autocomplete="off">
+                    <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                    <?php if ($edit_soal): ?>
+                        <input type="hidden" name="edit_id" value="<?= $edit_soal['id'] ?>">
+                    <?php else: ?>
+                        <input type="hidden" name="id_ujian" value="<?= $selected_ujian ?>">
+                    <?php endif; ?>
+                    
+                    <div class="question-box">
+                        <label class="form-label fw-bold"><i class="bi bi-chat-left-text me-2"></i>Pertanyaan</label>
+                        <textarea name="pertanyaan" class="form-control mb-3" rows="8" placeholder="Masukkan pertanyaan soal..." required><?= $edit_soal ? htmlspecialchars($edit_soal['pertanyaan']) : '' ?></textarea>
                         
-                        <div class="mb-4 p-3 bg-light rounded">
-                            <label class="form-label fw-bold">Pertanyaan</label>
-                            <textarea name="pertanyaan" class="form-control mb-2" rows="3" required><?= $edit_soal ? htmlspecialchars($edit_soal['pertanyaan']) : '' ?></textarea>
-                            <label class="form-label">Gambar Pertanyaan (opsional)</label>
-                            <input type="file" name="gambar_pertanyaan" class="form-control" accept="image/*">
-                            <?php if ($edit_soal && $edit_soal['gambar_pertanyaan']): ?>
-                                <div class="mt-2">
-                                    <img src="uploads/<?= $edit_soal['gambar_pertanyaan'] ?>" class="preview-img" alt="Gambar Pertanyaan">
-                                    <small class="text-muted d-block">Gambar sudah ada</small>
+                        <label class="form-label"><i class="bi bi-image me-1"></i>Gambar Pertanyaan (opsional)</label>
+                        <div class="file-upload-wrapper mb-2">
+                            <input type="file" name="gambar_pertanyaan" accept="image/*" onchange="updateFileName(this, 'label-pertanyaan')">
+                            <div class="file-upload-label" id="label-pertanyaan">
+                                <i class="bi bi-cloud-upload"></i> Klik untuk upload gambar
+                            </div>
+                        </div>
+                        <?php if ($edit_soal && $edit_soal['gambar_pertanyaan']): ?>
+                            <div class="mt-2">
+                                <img src="uploads/<?= $edit_soal['gambar_pertanyaan'] ?>" class="preview-img" alt="Gambar Pertanyaan">
+                                <small class="text-muted d-block">Gambar sudah ada</small>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><span class="opsi-label opsi-a">A</span>Opsi A</label>
+                                <textarea name="opsi_a" class="form-control mb-2" rows="3" placeholder="Masukkan opsi A..." required><?= $edit_soal ? htmlspecialchars($edit_soal['opsi_a']) : '' ?></textarea>
+                                <div class="file-upload-wrapper">
+                                    <input type="file" name="gambar_a" accept="image/*" onchange="updateFileName(this, 'label-a')">
+                                    <div class="file-upload-label" id="label-a">
+                                        <i class="bi bi-image"></i> Gambar Opsi A
+                                    </div>
                                 </div>
-                            <?php endif; ?>
+                                <?php if ($edit_soal && $edit_soal['gambar_a']): ?>
+                                    <img src="uploads/<?= $edit_soal['gambar_a'] ?>" class="gambar-preview" alt="Gambar A">
+                                <?php endif; ?>
+                            </div>
                         </div>
                         
-                        <div class="row">
-                            <!-- Opsi A -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Opsi A</label>
-                                <input type="text" name="opsi_a" class="form-control mb-2" required value="<?= $edit_soal ? htmlspecialchars($edit_soal['opsi_a']) : '' ?>">
-                                <label class="form-label">Gambar Opsi A</label>
-                                <input type="file" name="gambar_a" class="form-control" accept="image/*">
-                                <?php if ($edit_soal && $edit_soal['gambar_a']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_a'] ?>" class="gambar-preview mt-1" alt="Gambar A">
-                                <?php endif; ?>
-                            </div>
-                            
-                            <!-- Opsi B -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Opsi B</label>
-                                <input type="text" name="opsi_b" class="form-control mb-2" required value="<?= $edit_soal ? htmlspecialchars($edit_soal['opsi_b']) : '' ?>">
-                                <label class="form-label">Gambar Opsi B</label>
-                                <input type="file" name="gambar_b" class="form-control" accept="image/*">
+                        <div class="col-md-6">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><span class="opsi-label opsi-b">B</span>Opsi B</label>
+                                <textarea name="opsi_b" class="form-control mb-2" rows="3" placeholder="Masukkan opsi B..." required><?= $edit_soal ? htmlspecialchars($edit_soal['opsi_b']) : '' ?></textarea>
+                                <div class="file-upload-wrapper">
+                                    <input type="file" name="gambar_b" accept="image/*" onchange="updateFileName(this, 'label-b')">
+                                    <div class="file-upload-label" id="label-b">
+                                        <i class="bi bi-image"></i> Gambar Opsi B
+                                    </div>
+                                </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_b']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_b'] ?>" class="gambar-preview mt-1" alt="Gambar B">
+                                    <img src="uploads/<?= $edit_soal['gambar_b'] ?>" class="gambar-preview" alt="Gambar B">
                                 <?php endif; ?>
                             </div>
-                            
-                            <!-- Opsi C -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Opsi C</label>
-                                <input type="text" name="opsi_c" class="form-control mb-2" required value="<?= $edit_soal ? htmlspecialchars($edit_soal['opsi_c']) : '' ?>">
-                                <label class="form-label">Gambar Opsi C</label>
-                                <input type="file" name="gambar_c" class="form-control" accept="image/*">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><span class="opsi-label opsi-c">C</span>Opsi C</label>
+                                <textarea name="opsi_c" class="form-control mb-2" rows="3" placeholder="Masukkan opsi C..." required><?= $edit_soal ? htmlspecialchars($edit_soal['opsi_c']) : '' ?></textarea>
+                                <div class="file-upload-wrapper">
+                                    <input type="file" name="gambar_c" accept="image/*" onchange="updateFileName(this, 'label-c')">
+                                    <div class="file-upload-label" id="label-c">
+                                        <i class="bi bi-image"></i> Gambar Opsi C
+                                    </div>
+                                </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_c']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_c'] ?>" class="gambar-preview mt-1" alt="Gambar C">
+                                    <img src="uploads/<?= $edit_soal['gambar_c'] ?>" class="gambar-preview" alt="Gambar C">
                                 <?php endif; ?>
                             </div>
-                            
-                            <!-- Opsi D -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Opsi D</label>
-                                <input type="text" name="opsi_d" class="form-control mb-2" required value="<?= $edit_soal ? htmlspecialchars($edit_soal['opsi_d']) : '' ?>">
-                                <label class="form-label">Gambar Opsi D</label>
-                                <input type="file" name="gambar_d" class="form-control" accept="image/*">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><span class="opsi-label opsi-d">D</span>Opsi D</label>
+                                <textarea name="opsi_d" class="form-control mb-2" rows="3" placeholder="Masukkan opsi D..." required><?= $edit_soal ? htmlspecialchars($edit_soal['opsi_d']) : '' ?></textarea>
+                                <div class="file-upload-wrapper">
+                                    <input type="file" name="gambar_d" accept="image/*" onchange="updateFileName(this, 'label-d')">
+                                    <div class="file-upload-label" id="label-d">
+                                        <i class="bi bi-image"></i> Gambar Opsi D
+                                    </div>
+                                </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_d']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_d'] ?>" class="gambar-preview mt-1" alt="Gambar D">
+                                    <img src="uploads/<?= $edit_soal['gambar_d'] ?>" class="gambar-preview" alt="Gambar D">
                                 <?php endif; ?>
                             </div>
-                            
-                            <!-- Opsi E -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Opsi E</label>
-                                <input type="text" name="opsi_e" class="form-control mb-2" required value="<?= $edit_soal ? htmlspecialchars($edit_soal['opsi_e']) : '' ?>">
-                                <label class="form-label">Gambar Opsi E</label>
-                                <input type="file" name="gambar_e" class="form-control" accept="image/*">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><span class="opsi-label opsi-e">E</span>Opsi E</label>
+                                <textarea name="opsi_e" class="form-control mb-2" rows="3" placeholder="Masukkan opsi E..." required><?= $edit_soal ? htmlspecialchars($edit_soal['opsi_e']) : '' ?></textarea>
+                                <div class="file-upload-wrapper">
+                                    <input type="file" name="gambar_e" accept="image/*" onchange="updateFileName(this, 'label-e')">
+                                    <div class="file-upload-label" id="label-e">
+                                        <i class="bi bi-image"></i> Gambar Opsi E
+                                    </div>
+                                </div>
                                 <?php if ($edit_soal && $edit_soal['gambar_e']): ?>
-                                    <img src="uploads/<?= $edit_soal['gambar_e'] ?>" class="gambar-preview mt-1" alt="Gambar E">
+                                    <img src="uploads/<?= $edit_soal['gambar_e'] ?>" class="gambar-preview" alt="Gambar E">
                                 <?php endif; ?>
                             </div>
-                            
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label fw-bold">Kunci Jawaban</label>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><i class="bi bi-check2-square me-1"></i>Kunci Jawaban</label>
                                 <select name="kunci_jawaban" class="form-select">
                                     <option value="a" <?= $edit_soal && $edit_soal['kunci_jawaban'] === 'a' ? 'selected' : '' ?>>A</option>
                                     <option value="b" <?= $edit_soal && $edit_soal['kunci_jawaban'] === 'b' ? 'selected' : '' ?>>B</option>
@@ -324,61 +910,71 @@ if (isset($_GET['edit'])) {
                                     <option value="e" <?= $edit_soal && $edit_soal['kunci_jawaban'] === 'e' ? 'selected' : '' ?>>E</option>
                                 </select>
                             </div>
-                            
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label fw-bold">Poin</label>
-                                <input type="number" name="poin" class="form-control" value="<?= $edit_soal ? $edit_soal['poin'] : 10 ?>" min="1">
-                            </div>
                         </div>
                         
+                        <div class="col-md-3">
+                            <div class="opsi-card">
+                                <label class="form-label fw-bold"><i class="bi bi-star me-1"></i>Poin</label>
+                                <input type="number" name="poin" class="form-control" value="<?= $edit_soal ? (int)$edit_soal['poin'] : 10 ?>" min="1" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-3">
                         <button type="submit" name="simpan_soal" class="btn btn-primary">
-                            <i class="bi bi-save"></i> <?= $edit_soal ? 'Perbarui' : 'Simpan' ?>
+                            <i class="bi bi-save me-1"></i> <?= $edit_soal ? 'Perbarui' : 'Simpan' ?> Soal
                         </button>
-                        <?php if ($edit_soal): ?>
-                            <a href="tambah_soal.php?ujian=<?= $selected_ujian ?>" class="btn btn-secondary">Batal</a>
-                        <?php endif; ?>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
+        </div>
 
-            <div class="card">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Daftar Soal</h5>
-                    <span class="badge bg-light text-dark"><?= count($soal_list) ?> soal</span>
-                </div>
-                <div class="card-body">
-                    <?php if (count($soal_list) > 0): ?>
-                    <table class="table table-hover">
+        <div class="card animate-fade-in">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ol me-2"></i>Daftar Soal</span>
+                <span class="badge bg-primary"><?= count($soal_list) ?> soal</span>
+            </div>
+            <div class="card-body p-0">
+                <?php if (count($soal_list) > 0): ?>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>No</th>
+                                <th class="text-center" style="width: 60px;">No</th>
                                 <th>Pertanyaan</th>
-                                <th>Gambar</th>
-                                <th>Kunci</th>
-                                <th>Poin</th>
-                                <th>Aksi</th>
+                                <th class="text-center" style="width: 80px;">Gambar</th>
+                                <th class="text-center" style="width: 80px;">Kunci</th>
+                                <th class="text-center" style="width: 70px;">Poin</th>
+                                <th class="text-center" style="width: 120px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php $no = 1; foreach ($soal_list as $soal): ?>
                             <tr>
-                                <td><?= $no++ ?></td>
-                                <td><?= htmlspecialchars(mb_strimwidth($soal['pertanyaan'], 0, 60, '...')) ?></td>
+                                <td class="text-center"><?= $no++ ?></td>
                                 <td>
+                                    <div class="text-truncate" style="max-width: 300px;" title="<?= htmlspecialchars($soal['pertanyaan']) ?>">
+                                        <?= htmlspecialchars(mb_strimwidth($soal['pertanyaan'], 0, 80, '...')) ?>
+                                    </div>
+                                </td>
+                                <td class="text-center">
                                     <?php if ($soal['gambar_pertanyaan'] || $soal['gambar_a'] || $soal['gambar_b'] || $soal['gambar_c'] || $soal['gambar_d'] || $soal['gambar_e']): ?>
                                         <i class="bi bi-image-fill text-success"></i>
                                     <?php else: ?>
                                         <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
-                                <td><span class="badge bg-success"><?= strtoupper($soal['kunci_jawaban']) ?></span></td>
-                                <td><?= $soal['poin'] ?></td>
-                                <td>
-                                    <a href="?ujian=<?= $selected_ujian ?>&edit=<?= $soal['id'] ?>" class="btn btn-sm btn-warning">
+                                <td class="text-center">
+                                    <span class="badge bg-<?= $soal['kunci_jawaban'] === 'a' ? 'primary' : ($soal['kunci_jawaban'] === 'b' ? 'success' : ($soal['kunci_jawaban'] === 'c' ? 'warning' : ($soal['kunci_jawaban'] === 'd' ? 'danger' : 'info'))) ?>">
+                                        <?= strtoupper($soal['kunci_jawaban']) ?>
+                                    </span>
+                                </td>
+                                <td class="text-center"><?= $soal['poin'] ?></td>
+                                <td class="text-center">
+                                    <a href="?ujian=<?= $selected_ujian ?>&edit=<?= $soal['id'] ?>" class="btn btn-sm btn-warning" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <a href="?ujian=<?= $selected_ujian ?>&hapus=<?= $soal['id'] ?>" class="btn btn-sm btn-danger" 
-                                       onclick="return confirm('Yakin hapus?')">
+                                    <a href="?ujian=<?= $selected_ujian ?>&hapus=<?= $soal['id'] ?>&token=<?= $csrf_token ?>" class="btn btn-sm btn-danger" title="Hapus" onclick="return confirm('Yakin hapus soal ini?')">
                                         <i class="bi bi-trash"></i>
                                     </a>
                                 </td>
@@ -386,18 +982,90 @@ if (isset($_GET['edit'])) {
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                    <?php else: ?>
-                    <p class="text-center text-muted">Belum ada soal</p>
-                    <?php endif; ?>
                 </div>
+                <?php else: ?>
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-2">Belum ada soal untuk ujian ini</p>
+                </div>
+                <?php endif; ?>
             </div>
-            
-            <?php else: ?>
-            <div class="alert alert-info">Pilih ujian terlebih dahulu.</div>
-            <?php endif; ?>
         </div>
+        
+        <?php else: ?>
+        <div class="card animate-fade-in">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-folder2-open text-muted" style="font-size: 4rem;"></i>
+                <p class="text-muted mt-3">Silakan pilih ujian terlebih dahulu untuk mengelola bank soal</p>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+            document.querySelector('.overlay').classList.toggle('show');
+        }
+        
+        function updateFileName(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                const maxSize = 2 * 1024 * 1024;
+                
+                if (!validTypes.includes(file.type)) {
+                    alert('Format file tidak valid. Gunakan JPG, PNG, GIF, atau WebP');
+                    input.value = '';
+                    return;
+                }
+                
+                if (file.size > maxSize) {
+                    alert('File terlalu besar. Maksimal 2MB');
+                    input.value = '';
+                    return;
+                }
+                
+                label.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> ' + file.name;
+            }
+        }
+        
+        document.getElementById('soalForm').addEventListener('submit', function(e) {
+            const pertanyaan = document.querySelector('textarea[name="pertanyaan"]').value.trim();
+            const opsiA = document.querySelector('textarea[name="opsi_a"]').value.trim();
+            const opsiB = document.querySelector('textarea[name="opsi_b"]').value.trim();
+            const opsiC = document.querySelector('textarea[name="opsi_c"]').value.trim();
+            const opsiD = document.querySelector('textarea[name="opsi_d"]').value.trim();
+            const opsiE = document.querySelector('textarea[name="opsi_e"]').value.trim();
+            
+            if (!pertanyaan || !opsiA || !opsiB || !opsiC || !opsiD || !opsiE) {
+                e.preventDefault();
+                alert('Semua field wajib diisi');
+                return;
+            }
+            
+            if (pertanyaan.length < 5) {
+                e.preventDefault();
+                alert('Pertanyaan terlalu pendek');
+                return;
+            }
+        });
+        
+        document.querySelectorAll('textarea').forEach(function(textarea) {
+            textarea.addEventListener('input', function() {
+                this.value = this.value.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+            });
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const toastEl = document.querySelector('.toast');
+            if (toastEl) {
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+            }
+        });
+    </script>
 </body>
 </html>
