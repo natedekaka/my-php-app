@@ -195,3 +195,164 @@ MIT License - Bebas digunakan dan dimodifikasi
 ## Author
 
 Dibuat untuk memudahkan pengelolaan absensi siswa di sekolah.
+
+---
+
+# Tutorial Install Exam6 (Ujian Online)
+
+Aplikasi ujian online berbasis PHP dan MySQL dengan fitur manajemen soal dan rekap nilai.
+
+## Fitur
+
+- Manajemen Ujian (CRUD)
+- Bank Soal (Tambah/Edit/Hapus soal)
+- Tampilan ujian interaktif untuk siswa
+- Rekap Nilai
+- Profil Sekolah
+
+## Persiapan
+
+- PHP 8.0+
+- MySQL 8.0+
+- Web Server (Apache/Nginx/XAMPP)
+
+## Cara Install
+
+### Cara 1: Docker (Development)
+
+1. Clone repository:
+```bash
+git clone https://github.com/natedekaka/my-php-app.git
+cd my-php-app
+```
+
+2. Jalankan Docker:
+```bash
+docker-compose up -d
+```
+
+3. Buka browser:
+   - **Exam6**: http://localhost:8084/exam6
+   - **phpMyAdmin**: http://localhost:8083
+     - Server: `db`
+     - Username: `user`
+     - Password: `pass123`
+     - Database: `myapp`
+
+4. Import database `ujian_online.sql` melalui phpMyAdmin
+
+5. Login admin:
+   - Username: `admin`
+   - Password: `admin123`
+
+### Cara 2: Manual (XAMPP/LAMPP/cPanel)
+
+1. Clone/download aplikasi ke folder web server:
+```bash
+git clone https://github.com/natedekaka/my-php-app.git
+```
+
+2. Buat database baru:
+```sql
+CREATE DATABASE ujian_online CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+3. Import database:
+   - Import file `src/exam6/backup_db/ujian_online.sql` melalui phpMyAdmin
+
+4. Konfigurasi database:
+
+Edit `src/exam6/config/database.php`:
+```php
+$host = 'localhost';
+$user = 'root';
+$pass = ''; // password MySQL Anda
+$db   = 'ujian_online';
+```
+
+5. Konfigurasi sekolah:
+
+Edit `src/exam6/config/init_sekolah.php`:
+```php
+$nama_sekolah = 'SMA Negeri 6 Cimahi';
+$alamat = 'Jl. Contoh No. 123';
+$telepon = '(022) 1234567';
+```
+
+6. Akses aplikasi:
+```
+http://localhost/my-php-app/src/exam6
+```
+
+## Akun Default
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | admin | admin123 |
+
+## Cara Penggunaan
+
+### 1. Tambah Ujian
+1. Login sebagai Admin
+2. Buka menu **Manajemen Ujian**
+3. Isi form: Judul, Deskripsi, Status
+4. Klik Simpan
+
+### 2. Tambah Soal
+1. Klik tombol **Soal** pada ujian yang diinginkan
+2. Isi pertanyaan dan opsi jawaban
+3. Tandai jawaban yang benar
+4. Klik Simpan
+
+### 3. Ujian Siswa
+1. Buka link ujian: `ujian.php?id={id_ujian}`
+2. Siswa menjawab soal
+3. Submit jawaban
+
+### 4. Lihat Rekap Nilai
+1. Menu **Rekap Nilai**
+2. Pilih ujian
+3. Lihat nilai semua siswa
+
+## Struktur Folder
+
+```
+src/exam6/
+├── admin/                 # Panel admin
+│   ├── index.php         # Manajemen ujian
+│   ├── tambah_soal.php   # Bank soal
+│   ├── rekap_nilai.php   # Rekap nilai
+│   └── login.php         # Login admin
+├── config/
+│   ├── database.php      # Konfigurasi database
+│   └── init_sekolah.php  # Konfigurasi sekolah
+├── vendor/               # Library (Bootstrap, Bootstrap Icons)
+├── uploads/              # File upload (logo, gambar soal)
+├── index.php             # Landing page
+├── ujian.php             # Halaman ujian siswa
+└── .htaccess             # Konfigurasi Apache
+```
+
+## Troubleshooting
+
+### Error koneksi database
+Pastikan konfigurasi di `config/database.php` sesuai dengan settings MySQL Anda.
+
+### Gambar soal tidak muncul
+Pastikan folder `uploads/` memiliki permission 755 atau 775.
+
+### Ganti password admin
+Buka phpMyAdmin → tabel `admin` → update password dengan hash baru:
+```php
+password_hash('password_baru', PASSWORD_DEFAULT)
+```
+
+## Teknologi
+
+- **Frontend**: Bootstrap 5, Bootstrap Icons
+- **Backend**: PHP 8 Native
+- **Database**: MySQL
+
+## Lisensi
+
+MIT License
