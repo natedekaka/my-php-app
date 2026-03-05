@@ -2,6 +2,9 @@
 // ujian.php - Halaman Ujian Siswa (Tampilan Baru)
 
 require_once 'config/database.php';
+require_once 'config/init_sekolah.php';
+
+$sekolah = getKonfigurasiSekolah($conn);
 
 $message = '';
 $message_type = '';
@@ -301,8 +304,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
         * { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         body { background: #f8f9fa; }
         
+        .school-logo {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .school-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+        
         .ujian-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, <?= $sekolah['warna_primer'] ?> 0%, <?= $sekolah['warna_sekunder'] ?> 100%);
             padding: 30px 0;
             margin-bottom: 30px;
             position: relative;
@@ -532,7 +552,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
     <div class="ujian-header">
         <div class="container position-relative">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-md-2 text-center text-md-start mb-3 mb-md-0">
+                    <div class="school-logo d-inline-flex">
+                        <?php if ($sekolah['logo'] && file_exists('uploads/' . $sekolah['logo'])): ?>
+                            <img src="uploads/<?= $sekolah['logo'] ?>" alt="Logo" width="60" height="60">
+                        <?php else: ?>
+                            <i class="bi bi-mortarboard-fill" style="font-size: 2rem; color: white;"></i>
+                        <?php endif; ?>
+                    </div>
+                    <div class="text-white fw-bold" style="font-size: 0.85rem;"><?= htmlspecialchars($sekolah['nama_sekolah']) ?></div>
+                </div>
+                <div class="col-md-6">
                     <a href="index.php" class="text-white text-decoration-none mb-2 d-inline-block">
                         <i class="bi bi-arrow-left"></i> Kembali
                     </a>
@@ -671,8 +701,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
         </footer>
     </div>
 
-    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js" defer></script>
     <script>
+        // Validasi sebelum submit via modal
+        document.querySelector('.btn-submit').addEventListener('click', function(e) {
+            const totalSoal = <?= count($soal_list) ?>;
+            const answered = new Set();
+            
+            document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+                answered.add(radio.name);
+            });
+            
+            if (answered.size < totalSoal) {
+                e.preventDefault();
+                alert('Mohon jawab semua soal terlebih dahulu!\nSoal terjawab: ' + answered.size + '/' + totalSoal);
+                return false;
+            }
+        });
+        
         // Progress indicator
         const radioButtons = document.querySelectorAll('input[type="radio"]');
         const answeredCount = document.getElementById('answeredCount');

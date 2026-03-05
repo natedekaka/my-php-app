@@ -4,6 +4,9 @@
 session_start();
 
 require_once '../config/database.php';
+require_once '../config/init_sekolah.php';
+
+$sekolah = getKonfigurasiSekolah($conn);
 
 $message = '';
 
@@ -53,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css">
     <style>
         body { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, <?= $sekolah['warna_primer'] ?> 0%, <?= $sekolah['warna_sekunder'] ?> 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -71,6 +74,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 50px;
             color: #667eea;
         }
+        .school-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .school-logo i {
+            font-size: 2.5rem;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -79,8 +96,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="col-md-6">
                 <div class="login-card">
                     <div class="text-center mb-4">
-                        <i class="bi bi-mortarboard-fill login-icon"></i>
-                        <h3 class="mt-3">Sistem Ujian Online</h3>
+                        <div class="school-logo">
+                            <?php if ($sekolah['logo'] && file_exists('../uploads/' . $sekolah['logo'])): ?>
+                                <img src="../uploads/<?= $sekolah['logo'] ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">
+                            <?php else: ?>
+                                <i class="bi bi-mortarboard-fill"></i>
+                            <?php endif; ?>
+                        </div>
+                        <h5 class="fw-bold text-primary"><?= htmlspecialchars($sekolah['nama_sekolah']) ?></h5>
+                        <h4 class="mt-2">Sistem Ujian Online</h4>
                         <p class="text-muted">Login Admin</p>
                     </div>
                     
@@ -117,6 +141,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
     
-    <script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../vendor/bootstrap/bootstrap.bundle.min.js" defer></script>
 </body>
 </html>

@@ -12,6 +12,9 @@ if (!isset($_SESSION['admin_id'])) {
 }
 
 require_once '../config/database.php';
+require_once '../config/init_sekolah.php';
+
+$sekolah = getKonfigurasiSekolah($conn);
 
 $message = '';
 $message_type = '';
@@ -34,25 +37,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_ujian'])) {
     $deskripsi = trim($_POST['deskripsi']);
     $status = in_array($_POST['status'], ['aktif', 'nonaktif']) ? $_POST['status'] : 'nonaktif';
     $edit_id = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
+    $original_updated = $_POST['original_updated'] ?? '';
     
     if (empty($judul)) {
         $message = "Judul ujian wajib diisi!";
         $message_type = 'danger';
     } else {
         if ($edit_id > 0) {
-            $stmt = $conn->prepare("UPDATE ujian SET judul_ujian = ?, deskripsi = ?, status = ? WHERE id = ?");
-            $stmt->bind_param("sssi", $judul, $deskripsi, $status, $edit_id);
-            $message = "Ujian berhasil diperbarui!";
+            $stmt = $conn->prepare("SELECT updated_at FROM ujian WHERE id = ?");
+            $stmt->bind_param("i", $edit_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $current_data = $result->fetch_assoc();
+            $stmt->close();
+            
+            if ($current_data && $original_updated !== $current_data['updated_at']) {
+                $message = "Data telah diubah oleh pengguna lain. Silakan refresh dan coba lagi.";
+                $message_type = 'danger';
+            } else {
+                $stmt = $conn->prepare("UPDATE ujian SET judul_ujian = ?, deskripsi = ?, status = ? WHERE id = ?");
+                $stmt->bind_param("sssi", $judul, $deskripsi, $status, $edit_id);
+                $message = "Ujian berhasil diperbarui!";
+            }
         } else {
             $stmt = $conn->prepare("INSERT INTO ujian (judul_ujian, deskripsi, status) VALUES (?, ?, ?)");
             $stmt->bind_param("sss", $judul, $deskripsi, $status);
             $message = "Ujian berhasil ditambahkan!";
         }
         
-        if ($stmt->execute()) {
-            $message_type = 'success';
+        if (empty($message_type)) {
+            if ($stmt->execute()) {
+                $message_type = 'success';
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 }
 
@@ -61,8 +79,8 @@ if (isset($_GET['hapus'])) {
     $stmt = $conn->prepare("DELETE FROM ujian WHERE id = ?");
     $stmt->bind_param("i", $id);
     if ($stmt->execute()) {
-        $message = "Ujian berhasil dihapus!";
-        $message_type = 'success';
+        header('Location: index.php?deleted=1');
+        exit;
     }
     $stmt->close();
 }
@@ -121,6 +139,17 @@ if (isset($_GET['edit'])) {
         
         .sidebar-brand { padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .sidebar-brand h5 { color: #fff; font-weight: 600; margin: 0; }
+        
+        .school-logo {
+            width: 55px;
+            height: 55px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
         
         .sidebar a { 
             color: rgba(255,255,255,0.7); 
@@ -196,7 +225,115 @@ if (isset($_GET['edit'])) {
         
         .overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
         
-        .action-buttons .btn { margin-bottom: 0.25rem; }
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .action-btn-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            text-decoration: none;
+        }
+        
+        .action-btn-group:hover {
+            text-decoration: none;
+        }
+        
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            transition: all 0.2s ease;
+            font-size: 1.1rem;
+            text-decoration: none;
+            font-family: bootstrap-icons !important;
+        }
+        
+        .action-btn i {
+            font-family: bootstrap-icons !important;
+            font-style: normal;
+            font-variant: normal;
+            text-transform: none;
+            line-height: 1;
+            font-size: 1.1rem;
+        }
+        
+        .action-btn-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .action-btn-group:hover .action-btn {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .action-btn-edit {
+            background: #fef3c7;
+            color: #d97706 !important;
+        }
+        
+        .action-btn-edit:hover {
+            background: #fde68a;
+            color: #b45309 !important;
+        }
+        
+        .action-btn-toggle-on {
+            background: #dcfce7;
+            color: #16a34a !important;
+        }
+        
+        .action-btn-toggle-on:hover {
+            background: #bbf7d0;
+            color: #15803d !important;
+        }
+        
+        .action-btn-toggle-off {
+            background: #fee2e2;
+            color: #dc2626 !important;
+        }
+        
+        .action-btn-toggle-off:hover {
+            background: #fecaca;
+            color: #b91c1c !important;
+        }
+        
+        .action-btn-bank {
+            background: #dbeafe;
+            color: #2563eb !important;
+        }
+        
+        .action-btn-bank:hover {
+            background: #bfdbfe;
+            color: #1d4ed8 !important;
+        }
+        
+        .action-btn-delete {
+            background: #f3f4f6;
+            color: #6b7280 !important;
+        }
+        
+        .action-btn-delete:hover {
+            background: #fee2e2;
+            color: #dc2626 !important;
+        }
+        
+        .btn-action-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
         
         @media (max-width: 992px) {
             .sidebar { transform: translateX(-100%); }
@@ -217,6 +354,84 @@ if (isset($_GET['edit'])) {
         
         .animate-fade-in { animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .alert-danger-conflict {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid #fecaca;
+            border-left: 4px solid #ef4444;
+        }
+
+        .delete-modal .modal-content {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .delete-modal .modal-header {
+            border-bottom: none;
+            padding: 1.5rem 1.5rem 0;
+        }
+
+        .delete-modal .modal-body {
+            padding: 1rem 1.5rem 1.5rem;
+            text-align: center;
+        }
+
+        .delete-modal .modal-footer {
+            border-top: none;
+            padding: 0 1.5rem 1.5rem;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .delete-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .delete-icon i {
+            font-size: 2.5rem;
+            color: #ef4444;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            min-width: 300px;
+        }
+
+        .toast-notification.show {
+            animation: slideIn 0.4s ease, fadeOut 0.4s ease 2.6s forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 1px solid #a7f3d0;
+            border-left: 4px solid #10b981;
+            border-radius: 12px;
+        }
+
+        .toast-success .toast-icon {
+            color: #10b981;
+        }
     </style>
 </head>
 <body>
@@ -227,26 +442,45 @@ if (isset($_GET['edit'])) {
     <div class="overlay" onclick="toggleSidebar()"></div>
 
     <div class="sidebar">
-        <div class="sidebar-brand">
-            <h5><i class="bi bi-mortarboard-fill me-2"></i>Admin Panel</h5>
+        <div class="sidebar-brand text-center">
+            <div class="school-logo mb-2">
+                <?php if ($sekolah['logo'] && file_exists('../uploads/' . $sekolah['logo'])): ?>
+                    <img src="../uploads/<?= $sekolah['logo'] ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">
+                <?php else: ?>
+                    <i class="bi bi-mortarboard-fill" style="font-size: 1.8rem;"></i>
+                <?php endif; ?>
+            </div>
+            <div class="text-white fw-bold" style="font-size: 0.85rem;"><?= htmlspecialchars($sekolah['nama_sekolah']) ?></div>
+            <h5 class="mt-2"><i class="bi bi-gear me-1"></i>Admin Panel</h5>
         </div>
         <div class="sidebar-menu">
             <a href="index.php" class="active"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
             <a href="tambah_soal.php"><i class="bi bi-question-circle-fill"></i> Bank Soal</a>
             <a href="rekap_nilai.php"><i class="bi bi-bar-chart-fill"></i> Rekap Nilai</a>
+            <a href="profil_sekolah.php"><i class="bi bi-building"></i> Profil Sekolah</a>
             <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right"></i> Logout (<?= htmlspecialchars($_SESSION['admin_username']) ?>)</a>
         </div>
     </div>
 
     <div class="main-content">
         <div class="page-header animate-fade-in">
-            <h3><i class="bi bi-clipboard-data me-2"></i>Manajemen Ujian</h3>
+            <h3><i class="bi bi-clipboard-data me-2"></i>Manajemen Ujian - SMA Negeri 6 Cimahi</h3>
             <span class="badge bg-primary fs-6"><?= $result->num_rows ?> ujian</span>
         </div>
         
         <?php if ($message): ?>
-        <div class="alert alert-<?= $message_type ?> alert-dismissible fade show animate-fade-in">
-            <?= htmlspecialchars($message) ?>
+        <div class="alert <?= ($message_type === 'danger' && strpos($message, 'pengguna lain') !== false) ? 'alert-danger-conflict' : 'alert-'.$message_type ?> alert-dismissible fade show animate-fade-in" role="alert">
+            <?php if ($message_type === 'danger' && strpos($message, 'pengguna lain') !== false): ?>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div>
+                        <strong>Konflik Data!</strong><br>
+                        <?= htmlspecialchars($message) ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <?= htmlspecialchars($message) ?>
+            <?php endif; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         <?php endif; ?>
@@ -264,6 +498,7 @@ if (isset($_GET['edit'])) {
                 <form method="POST" autocomplete="off">
                     <?php if ($edit_ujian): ?>
                         <input type="hidden" name="edit_id" value="<?= $edit_ujian['id'] ?>">
+                        <input type="hidden" name="original_updated" value="<?= $edit_ujian['updated_at'] ?>">
                     <?php endif; ?>
                     
                     <div class="row">
@@ -341,21 +576,47 @@ if (isset($_GET['edit'])) {
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="d-flex gap-1 action-buttons justify-content-center">
-                                        <a href="?edit=<?= $row['id'] ?>" class="btn btn-sm btn-warning" title="Edit">
-                                            <i class="bi bi-pencil"></i>
+                                    <div class="action-buttons">
+                                        <a href="?edit=<?= $row['id'] ?>" 
+                                           class="action-btn-group" 
+                                           data-bs-toggle="tooltip" 
+                                           data-bs-placement="top" 
+                                           title="Edit Ujian">
+                                            <span class="action-btn action-btn-edit">
+                                                <i class="bi bi-pencil" style="font-size: 1rem;"></i>
+                                            </span>
+                                            <span class="action-btn-label">Edit</span>
                                         </a>
                                         <a href="?toggle=1&id=<?= $row['id'] ?>&status=<?= $row['status'] ?>" 
-                                           class="btn btn-sm btn-<?= $row['status'] === 'aktif' ? 'danger' : 'success' ?>" 
+                                           class="action-btn-group" 
+                                           data-bs-toggle="tooltip" 
+                                           data-bs-placement="top" 
                                            title="<?= $row['status'] === 'aktif' ? 'Nonaktifkan' : 'Aktifkan' ?>">
-                                            <i class="bi bi-toggle-<?= $row['status'] === 'aktif' ? 'on' : 'off' ?>"></i>
+                                            <span class="action-btn <?= $row['status'] === 'aktif' ? 'action-btn-toggle-on' : 'action-btn-toggle-off' ?>">
+                                                <i class="bi bi-<?= $row['status'] === 'aktif' ? 'toggle-on' : 'toggle-off' ?>" style="font-size: 1rem;"></i>
+                                            </span>
+                                            <span class="action-btn-label"><?= $row['status'] === 'aktif' ? 'Aktif' : 'Nonaktif' ?></span>
                                         </a>
-                                        <a href="tambah_soal.php?ujian=<?= $row['id'] ?>" class="btn btn-sm btn-info" title="Bank Soal">
-                                            <i class="bi bi-list-ol"></i>
+                                        <a href="tambah_soal.php?ujian=<?= $row['id'] ?>" 
+                                           class="action-btn-group" 
+                                           data-bs-toggle="tooltip" 
+                                           data-bs-placement="top" 
+                                           title="Bank Soal">
+                                            <span class="action-btn action-btn-bank">
+                                                <i class="bi bi-journal-bookmark" style="font-size: 1rem;"></i>
+                                            </span>
+                                            <span class="action-btn-label">Soal</span>
                                         </a>
-                                        <a href="?hapus=<?= $row['id'] ?>" class="btn btn-sm btn-danger" title="Hapus"
-                                           onclick="return confirm('Yakin hapus ujian ini? Semua soal juga akan dihapus.')">
-                                            <i class="bi bi-trash"></i>
+                                        <a href="javascript:void(0)" 
+                                           class="action-btn-group" 
+                                           data-bs-toggle="tooltip" 
+                                           data-bs-placement="top" 
+                                           title="Hapus Ujian"
+                                           onclick="showDeleteModal(<?= $row['id'] ?>, '<?= htmlspecialchars($row['judul_ujian'], ENT_QUOTES) ?>')">
+                                            <span class="action-btn action-btn-delete">
+                                                <i class="bi bi-trash3" style="font-size: 1rem;"></i>
+                                            </span>
+                                            <span class="action-btn-label">Hapus</span>
                                         </a>
                                     </div>
                                 </td>
@@ -374,8 +635,85 @@ if (isset($_GET['edit'])) {
         </div>
     </div>
 
-    <script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade delete-modal" id="deleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="delete-icon">
+                        <i class="bi bi-trash3"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Hapus Ujian?</h5>
+                    <p class="text-muted mb-0">Apakah Anda yakin ingin menghapus ujian "<strong id="deleteUjianTitle"></strong>"?</p>
+                    <p class="text-danger small mb-0 mt-2"><i class="bi bi-exclamation-triangle me-1"></i>Tindakan ini tidak dapat dibatalkan. Semua soal juga akan dihapus.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Batal
+                    </button>
+                    <a href="#" id="confirmDeleteBtn" class="btn btn-danger">
+                        <i class="bi bi-trash3 me-1"></i>Hapus
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-notification" id="toastNotification">
+        <div class="toast toast-success p-3" role="alert">
+            <div class="d-flex align-items-center">
+                <div class="toast-icon me-3">
+                    <i class="bi bi-check-circle-fill" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <strong class="d-block">Berhasil!</strong>
+                    <small class="text-muted" id="toastMessage">Ujian berhasil dihapus.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../vendor/bootstrap/bootstrap.bundle.min.js" defer></script>
     <script>
+        var deleteModal;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            
+            // Check for delete success message in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('deleted') === '1') {
+                showToast('Ujian berhasil dihapus!');
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
+        function showDeleteModal(id, title) {
+            document.getElementById('deleteUjianTitle').textContent = title;
+            document.getElementById('confirmDeleteBtn').href = '?hapus=' + id;
+            deleteModal.show();
+        }
+
+        function showToast(message) {
+            var toast = document.getElementById('toastNotification');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.add('show');
+            setTimeout(function() {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+        
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('show');
             document.querySelector('.overlay').classList.toggle('show');

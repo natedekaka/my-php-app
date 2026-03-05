@@ -2,7 +2,9 @@
 // index.php - Halaman Depan (List Ujian)
 
 require_once 'config/database.php';
+require_once 'config/init_sekolah.php';
 
+$sekolah = getKonfigurasiSekolah($conn);
 $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY tgl_dibuat DESC");
 ?>
 
@@ -11,17 +13,21 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistem Ujian Online - SMA Negeri 6 Cimahi">
     <title>Sistem Ujian Online</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         * {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         
         .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, <?= $sekolah['warna_primer'] ?> 0%, <?= $sekolah['warna_sekunder'] ?> 100%);
             padding: 60px 0;
             position: relative;
             overflow: hidden;
@@ -35,6 +41,32 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
             right: 0;
             bottom: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        
+        .school-logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .school-logo img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+        
+        .school-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 5px;
         }
         
         .hero-title {
@@ -64,7 +96,7 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
         }
         
         .ujian-card .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, <?= $sekolah['warna_primer'] ?> 0%, <?= $sekolah['warna_sekunder'] ?> 100%);
             color: white;
             border: none;
             padding: 20px;
@@ -130,8 +162,16 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
         <div class="container position-relative">
             <div class="row justify-content-center">
                 <div class="col-lg-8 text-center">
-                    <h1 class="hero-title mb-3">
-                        <i class="bi bi-mortarboard-fill me-2"></i>Sistem Ujian Online
+                    <div class="school-logo">
+                        <?php if ($sekolah['logo'] && file_exists('uploads/' . $sekolah['logo'])): ?>
+                            <img src="uploads/<?= $sekolah['logo'] ?>" alt="Logo" width="60" height="60">
+                        <?php else: ?>
+                            <i class="bi bi-mortarboard-fill" style="font-size: 2.5rem; color: <?= $sekolah['warna_primer'] ?>;"></i>
+                        <?php endif; ?>
+                    </div>
+                    <p class="school-name mb-1"><?= htmlspecialchars($sekolah['nama_sekolah']) ?></p>
+                    <h1 class="hero-title">
+                        <i class="bi bi-clipboard-check me-2"></i>Sistem Ujian Online
                     </h1>
                     <p class="hero-subtitle">Selamat datang! Silakan pilih ujian yang tersedia di bawah ini untuk memulai.</p>
                 </div>
@@ -225,6 +265,6 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
         </div>
     </footer>
 
-    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js" defer></script>
 </body>
 </html>

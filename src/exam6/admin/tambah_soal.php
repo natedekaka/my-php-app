@@ -20,6 +20,9 @@ if (!isset($_SESSION['csrf_token_time']) || time() - $_SESSION['csrf_token_time'
 }
 
 require_once '../config/database.php';
+require_once '../config/init_sekolah.php';
+
+$sekolah = getKonfigurasiSekolah($conn);
 
 function generateCsrfToken() {
     if (empty($_SESSION['csrf_token'])) {
@@ -115,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_soal'])) {
         $kunci = in_array($_POST['kunci_jawaban'], ['a','b','c','d','e']) ? $_POST['kunci_jawaban'] : 'a';
         $poin = max(1, (int)$_POST['poin']);
         $edit_id = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
+        $original_updated = $_POST['original_updated'] ?? '';
         
         if (empty($pertanyaan) || empty($opsi_a) || empty($opsi_b) || empty($opsi_c) || empty($opsi_d) || empty($opsi_e)) {
             $message = 'Semua field wajib diisi';
@@ -128,13 +132,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_soal'])) {
             $gambar_e = null;
             
             if ($edit_id > 0) {
-                $stmt = $conn->prepare("SELECT * FROM soal WHERE id = ? AND id_ujian IN (SELECT id FROM ujian WHERE id_admin = ?)");
-                $stmt->bind_param("ii", $edit_id, $_SESSION['admin_id']);
+                $stmt = $conn->prepare("SELECT * FROM soal WHERE id = ?");
+                $stmt->bind_param("i", $edit_id);
                 $stmt->execute();
                 $old_soal = $stmt->get_result()->fetch_assoc();
                 $stmt->close();
                 
-                if (!$old_soal) {
+                if ($old_soal && $original_updated !== $old_soal['updated_at']) {
+                    $message = 'Data soal telah diubah oleh pengguna lain. Silakan refresh dan coba lagi.';
+                    $message_type = 'danger';
+                } elseif (!$old_soal) {
                     $message = 'Soal tidak ditemukan';
                     $message_type = 'danger';
                 } else {
@@ -236,8 +243,8 @@ if (isset($_GET['hapus']) && isset($_GET['token'])) {
         $message = 'Token keamanan tidak valid';
         $message_type = 'danger';
     } else {
-        $stmt = $conn->prepare("SELECT s.* FROM soal s JOIN ujian u ON s.id_ujian = u.id WHERE s.id = ? AND u.id_admin = ?");
-        $stmt->bind_param("ii", $id, $_SESSION['admin_id']);
+        $stmt = $conn->prepare("SELECT s.* FROM soal s WHERE s.id = ?");
+        $stmt->bind_param("i", $id);
         $stmt->execute();
         $soal = $stmt->get_result()->fetch_assoc();
         $stmt->close();
@@ -276,8 +283,8 @@ if ($selected_ujian > 0) {
 $edit_soal = null;
 if (isset($_GET['edit'])) {
     $id = (int)$_GET['edit'];
-    $stmt = $conn->prepare("SELECT s.* FROM soal s JOIN ujian u ON s.id_ujian = u.id WHERE s.id = ? AND u.id_admin = ?");
-    $stmt->bind_param("ii", $id, $_SESSION['admin_id']);
+    $stmt = $conn->prepare("SELECT s.* FROM soal s WHERE s.id = ?");
+    $stmt->bind_param("i", $id);
     $stmt->execute();
     $edit_result = $stmt->get_result();
     $edit_soal = $edit_result->fetch_assoc();
@@ -333,9 +340,25 @@ $csrf_token = $_SESSION['csrf_token'];
             transition: transform 0.3s ease;
         }
         
-        .sidebar-brand {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+        .sidebar-brand { 
+            padding: 1.5rem; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+        }
+        .sidebar-brand h5 { 
+            color: #fff; 
+            font-weight: 600; 
+            margin: 0; 
+        }
+        
+        .school-logo {
+            width: 55px;
+            height: 55px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
         }
         
         .sidebar-brand h5 {
@@ -419,6 +442,29 @@ $csrf_token = $_SESSION['csrf_token'];
         
         .card-body {
             padding: 1.5rem;
+        }
+        
+        .card-body.scrollable-table {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 0 !important;
+        }
+        
+        .card-body.scrollable-table::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .card-body.scrollable-table::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .card-body.scrollable-table::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        .card-body.scrollable-table::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
         
         .form-label {
@@ -712,6 +758,78 @@ $csrf_token = $_SESSION['csrf_token'];
         .question-box:hover {
             border-color: var(--primary);
         }
+        
+        .toast-header.bg-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .action-btn-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            text-decoration: none;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+        
+        .action-btn-group:hover {
+            text-decoration: none;
+        }
+        
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            transition: all 0.2s ease;
+            font-size: 1.1rem;
+            text-decoration: none;
+        }
+        
+        .action-btn-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .action-btn-group:hover .action-btn {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .action-btn-edit {
+            background: #fef3c7;
+            color: #d97706 !important;
+        }
+        
+        .action-btn-edit:hover {
+            background: #fde68a;
+            color: #b45309 !important;
+        }
+        
+        .action-btn-delete {
+            background: #f3f4f6;
+            color: #6b7280 !important;
+        }
+        
+        .action-btn-delete:hover {
+            background: #fee2e2;
+            color: #dc2626 !important;
+        }
     </style>
 </head>
 <body>
@@ -722,13 +840,22 @@ $csrf_token = $_SESSION['csrf_token'];
     <div class="overlay" onclick="toggleSidebar()"></div>
 
     <div class="sidebar">
-        <div class="sidebar-brand">
-            <h5><i class="bi bi-mortarboard-fill me-2"></i>Admin Panel</h5>
+        <div class="sidebar-brand text-center">
+            <div class="school-logo mb-2">
+                <?php if ($sekolah['logo'] && file_exists('../uploads/' . $sekolah['logo'])): ?>
+                    <img src="../uploads/<?= $sekolah['logo'] ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">
+                <?php else: ?>
+                    <i class="bi bi-mortarboard-fill" style="font-size: 1.8rem;"></i>
+                <?php endif; ?>
+            </div>
+            <div class="text-white fw-bold" style="font-size: 0.85rem;"><?= htmlspecialchars($sekolah['nama_sekolah']) ?></div>
+            <h5 class="mt-2"><i class="bi bi-gear me-1"></i>Admin Panel</h5>
         </div>
         <div class="sidebar-menu">
             <a href="index.php"><i class="bi bi-grid-1x2-fill"></i> Manajemen Ujian</a>
             <a href="tambah_soal.php" class="active"><i class="bi bi-question-circle-fill"></i> Bank Soal</a>
             <a href="rekap_nilai.php"><i class="bi bi-bar-chart-fill"></i> Rekap Nilai</a>
+            <a href="profil_sekolah.php"><i class="bi bi-building"></i> Profil Sekolah</a>
             <a href="logout.php" class="text-warning mt-3"><i class="bi bi-box-arrow-right"></i> Logout (<?= htmlspecialchars($_SESSION['admin_username']) ?>)</a>
         </div>
     </div>
@@ -744,9 +871,9 @@ $csrf_token = $_SESSION['csrf_token'];
         <?php if ($message): ?>
         <div class="toast-container">
             <div class="toast show" role="alert" data-bs-delay="5000">
-                <div class="toast-header bg-<?= $message_type ?> text-white">
-                    <i class="bi bi-<?= $message_type === 'success' ? 'check-circle' : 'exclamation-circle' ?>-fill me-2"></i>
-                    <strong class="me-auto"><?= $message_type === 'success' ? 'Berhasil' : 'Peringatan' ?></strong>
+                <div class="toast-header <?= ($message_type === 'danger' && strpos($message, 'pengguna lain') !== false) ? 'bg-danger' : 'bg-'.$message_type ?> text-white">
+                    <i class="bi bi-<?= ($message_type === 'danger' && strpos($message, 'pengguna lain') !== false) ? 'exclamation-triangle-fill' : ($message_type === 'success' ? 'check-circle' : 'exclamation-circle') ?>-fill me-2"></i>
+                    <strong class="me-auto"><?= ($message_type === 'danger' && strpos($message, 'pengguna lain') !== false) ? 'Konflik Data!' : ($message_type === 'success' ? 'Berhasil' : 'Peringatan') ?></strong>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
@@ -793,6 +920,7 @@ $csrf_token = $_SESSION['csrf_token'];
                     <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                     <?php if ($edit_soal): ?>
                         <input type="hidden" name="edit_id" value="<?= $edit_soal['id'] ?>">
+                        <input type="hidden" name="original_updated" value="<?= $edit_soal['updated_at'] ?>">
                     <?php else: ?>
                         <input type="hidden" name="id_ujian" value="<?= $selected_ujian ?>">
                     <?php endif; ?>
@@ -932,7 +1060,7 @@ $csrf_token = $_SESSION['csrf_token'];
                 <span><i class="bi bi-list-ol me-2"></i>Daftar Soal</span>
                 <span class="badge bg-primary"><?= count($soal_list) ?> soal</span>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body scrollable-table">
                 <?php if (count($soal_list) > 0): ?>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -969,12 +1097,30 @@ $csrf_token = $_SESSION['csrf_token'];
                                 </td>
                                 <td class="text-center"><?= $soal['poin'] ?></td>
                                 <td class="text-center">
-                                    <a href="?ujian=<?= $selected_ujian ?>&edit=<?= $soal['id'] ?>" class="btn btn-sm btn-warning" title="Edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="?ujian=<?= $selected_ujian ?>&hapus=<?= $soal['id'] ?>&token=<?= $csrf_token ?>" class="btn btn-sm btn-danger" title="Hapus" onclick="return confirm('Yakin hapus soal ini?')">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <div class="action-buttons">
+                                        <a href="?ujian=<?= $selected_ujian ?>&edit=<?= $soal['id'] ?>" 
+                                           class="action-btn-group" 
+                                           data-bs-toggle="tooltip" 
+                                           data-bs-placement="top" 
+                                           title="Edit">
+                                            <span class="action-btn action-btn-edit">
+                                                <i class="bi bi-pencil" style="font-size: 1rem;"></i>
+                                            </span>
+                                            <span class="action-btn-label">Edit</span>
+                                        </a>
+                                        <button type="button" 
+                                            class="action-btn-group btn-hapus-soal" 
+                                            data-id="<?= $soal['id'] ?>" 
+                                            data-token="<?= $csrf_token ?>"
+                                            data-bs-toggle="tooltip" 
+                                            data-bs-placement="top" 
+                                            title="Hapus">
+                                            <span class="action-btn action-btn-delete">
+                                                <i class="bi bi-trash3" style="font-size: 1rem;"></i>
+                                            </span>
+                                            <span class="action-btn-label">Hapus</span>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -1058,12 +1204,118 @@ $csrf_token = $_SESSION['csrf_token'];
         });
         
         document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
+            
             const toastEl = document.querySelector('.toast');
             if (toastEl) {
                 const toast = new bootstrap.Toast(toastEl);
                 toast.show();
             }
+            
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            const deleteBtn = document.querySelectorAll('.btn-hapus-soal');
+            const deleteLink = document.getElementById('deleteLink');
+            
+            deleteBtn.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const token = this.getAttribute('data-token');
+                    deleteLink.href = '?ujian=<?= $selected_ujian ?>&hapus=' + id + '&token=' + token;
+                    deleteModal.show();
+                });
+            });
+            
+            deleteLink.addEventListener('click', function(e) {
+                deleteModal.hide();
+            });
         });
     </script>
+    
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: none; border-radius: 16px; overflow: hidden;">
+                <div class="modal-header justify-content-center pt-4 pb-0 border-0">
+                    <div class="delete-icon-wrapper">
+                        <div class="delete-icon">
+                            <i class="bi bi-trash-fill"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-body text-center px-4 pb-4">
+                    <h4 class="fw-bold mb-2" style="color: #1e293b;">Hapus Soal?</h4>
+                    <p class="text-muted mb-0">Soal yang dihapus tidak dapat dikembalikan. Apakah Anda yakin?</p>
+                </div>
+                <div class="modal-footer justify-content-center border-0 pb-4">
+                    <button type="button" class="btn btn-secondary btn-batal" data-bs-dismiss="modal" style="padding: 10px 30px; border-radius: 25px; font-weight: 500;">
+                        <i class="bi bi-x-lg me-1"></i> Batal
+                    </button>
+                    <a href="#" id="deleteLink" class="btn btn-danger btn-hapus" style="padding: 10px 30px; border-radius: 25px; font-weight: 500;">
+                        <i class="bi bi-trash-fill me-1"></i> Hapus
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .delete-icon-wrapper {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: bounce 0.5s ease;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .delete-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+        
+        .delete-icon i {
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .btn-batal {
+            background: #f1f5f9;
+            border: none;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        
+        .btn-batal:hover {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        
+        .btn-hapus {
+            border: none;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            transition: all 0.2s;
+        }
+        
+        .btn-hapus:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+    </style>
 </body>
 </html>
