@@ -124,7 +124,7 @@ $sekolah = getKonfigurasiSekolah($conn);
         .sidebar a:hover { background: rgba(255,255,255,0.05); color: #fff; }
         .sidebar a.active { background: rgba(79, 70, 229, 0.2); color: #fff; border-left-color: var(--primary); }
         
-        .main-content { margin-left: var(--sidebar-width); padding: 2rem; }
+        .main-content { margin-left: var(--sidebar-width); padding: 2rem; transition: margin-left 0.3s ease; }
         
         .page-header {
             background: #fff;
@@ -173,10 +173,125 @@ $sekolah = getKonfigurasiSekolah($conn);
         
         .animate-fade-in { animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1100;
+            background: #1e293b;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 1.2rem;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .mobile-toggle {
+                display: flex;
+            }
+
+            .overlay.show {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 4rem 1rem 1rem;
+            }
+
+            .page-header {
+                padding: 1rem;
+            }
+
+            .page-header h3 {
+                font-size: 1.25rem;
+            }
+
+            .logo-preview {
+                width: 100px;
+                height: 100px;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .card-body {
+                padding: 1rem;
+            }
+
+            .col-md-4, .col-md-8 {
+                width: 100%;
+            }
+
+            .logo-preview {
+                width: 90px;
+                height: 90px;
+            }
+
+            .form-label {
+                font-size: 0.9rem;
+            }
+
+            .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .main-content {
+                padding: 4rem 0.75rem 1rem;
+            }
+
+            .page-header h3 {
+                font-size: 1.1rem;
+            }
+
+            .logo-preview {
+                width: 80px;
+                height: 80px;
+            }
+
+            .mobile-toggle {
+                padding: 8px 12px;
+                font-size: 1rem;
+            }
+
+            .mobile-toggle span {
+                display: none;
+            }
+        }
     </style>
-</head>
 <body>
-    <div class="sidebar">
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+    
+    <div class="overlay" onclick="toggleSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="school-logo">
                 <i class="bi bi-mortarboard-fill" style="font-size: 1.8rem;"></i>
@@ -281,6 +396,20 @@ $sekolah = getKonfigurasiSekolah($conn);
 
     <script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.querySelector('.overlay').classList.toggle('show');
+        }
+
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-toggle');
+            if (window.innerWidth < 992 && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+                document.querySelector('.overlay').classList.remove('show');
+            }
+        });
+
         document.querySelector('input[name="warna_primer"]').addEventListener('input', function() {
             document.getElementById('warnaPrimerValue').value = this.value;
             updatePreview();

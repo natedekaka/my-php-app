@@ -295,6 +295,12 @@ if (isset($_GET['edit'])) {
 }
 
 $csrf_token = $_SESSION['csrf_token'];
+
+if (isset($_SESSION['import_message'])) {
+    $message = $_SESSION['import_message'];
+    $message_type = $_SESSION['import_message_type'] ?? 'danger';
+    unset($_SESSION['import_message'], $_SESSION['import_message_type']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -862,10 +868,20 @@ $csrf_token = $_SESSION['csrf_token'];
 
     <div class="main-content">
         <div class="page-header animate-fade-in">
-            <h3><i class="bi bi-journal-text me-2"></i>Bank Soal</h3>
-            <?php if ($selected_ujian > 0): ?>
-            <span class="badge bg-primary fs-6"><?= count($soal_list) ?> soal</span>
-            <?php endif; ?>
+            <div class="d-flex align-items-center gap-3">
+                <h3><i class="bi bi-journal-text me-2"></i>Bank Soal</h3>
+                <?php if ($selected_ujian > 0): ?>
+                <span class="badge bg-primary fs-6"><?= count($soal_list) ?> soal</span>
+                <?php endif; ?>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="download_template.php" class="btn btn-outline-primary btn-sm" target="_blank">
+                    <i class="bi bi-download me-1"></i> Download Template
+                </a>
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="bi bi-upload me-1"></i> Import DOCX
+                </button>
+            </div>
         </div>
         
         <?php if ($message): ?>
@@ -1176,6 +1192,29 @@ $csrf_token = $_SESSION['csrf_token'];
             }
         }
         
+        function updateDocxName(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const validTypes = ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                const maxSize = 5 * 1024 * 1024;
+                
+                if (!validTypes.includes(file.type)) {
+                    alert('Format file tidak valid. Gunakan file .docx');
+                    input.value = '';
+                    return;
+                }
+                
+                if (file.size > maxSize) {
+                    alert('File terlalu besar. Maksimal 5MB');
+                    input.value = '';
+                    return;
+                }
+                
+                label.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> ' + file.name;
+            }
+        }
+        
         document.getElementById('soalForm').addEventListener('submit', function(e) {
             const pertanyaan = document.querySelector('textarea[name="pertanyaan"]').value.trim();
             const opsiA = document.querySelector('textarea[name="opsi_a"]').value.trim();
@@ -1317,5 +1356,56 @@ $csrf_token = $_SESSION['csrf_token'];
             box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
         }
     </style>
+
+    <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: none; border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 1.25rem 1.5rem;">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-upload me-2"></i>Import Soal dari DOCX</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" enctype="multipart/form-data" action="import_soal.php">
+                    <div class="modal-body" style="padding: 1.5rem;">
+                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                        <input type="hidden" name="id_ujian" value="<?= $selected_ujian ?>">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Pilih File DOCX</label>
+                            <div class="file-upload-wrapper">
+                                <input type="file" name="file_docx" accept=".docx" required onchange="updateDocxName(this, 'label-import')">
+                                <div class="file-upload-label" id="label-import">
+                                    <i class="bi bi-cloud-upload"></i> Klik untuk upload file .docx
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-2">Format: .docx (Word 2007 ke atas)</small>
+                        </div>
+                        
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Format soal dalam DOCX:</strong><br>
+                            PERTANYAAN: ...<br>
+                            OPSI_A: ...<br>
+                            OPSI_B: ...<br>
+                            OPSI_C: ...<br>
+                            OPSI_D: ...<br>
+                            OPSI_E: ...<br>
+                            KUNCI: A/B/C/D/E<br>
+                            POIN: 10<br>
+                            GAMBAR_PERTANYAAN: nama_file.jpg (opsional)<br>
+                            GAMBAR_A: nama_file.jpg (opsional)<br><br>
+                            <em>Pisahkan setiap soal dengan 1 baris kosong</em><br>
+                            <em>Untuk gambar: embed di DOCX atau tulis nama file saja</em>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="border-top: 1px solid #e2e8f0; padding: 1rem 1.5rem;">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" name="import_soal" class="btn btn-success">
+                            <i class="bi bi-upload me-1"></i> Import
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
