@@ -19,6 +19,28 @@ $sekolah = getKonfigurasiSekolah($conn);
 $message = '';
 $message_type = '';
 
+// Cek kolom baru dengan cara aman
+$has_new_columns = false;
+$has_tampilkan_skor = false;
+try {
+    $result_cols = $conn->query("SHOW COLUMNS FROM ujian LIKE 'acak_soal'");
+    if ($result_cols && $result_cols->num_rows > 0) {
+        $row = $result_cols->fetch_assoc();
+        $result_cols->free();
+        $col_type = strtolower($row['Type'] ?? '');
+        if (strpos($col_type, 'varchar') !== false || strpos($col_type, 'enum') !== false) {
+            $has_new_columns = true;
+        }
+    }
+    $result_cols2 = $conn->query("SHOW COLUMNS FROM ujian LIKE 'tampilkan_skor'");
+    if ($result_cols2 && $result_cols2->num_rows > 0) {
+        $has_tampilkan_skor = true;
+    }
+} catch (Exception $e) {
+    $has_new_columns = false;
+    $has_tampilkan_skor = false;
+}
+
 if (isset($_GET['toggle']) && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     $status = $_GET['status'] === 'aktif' ? 'nonaktif' : 'aktif';
@@ -33,9 +55,27 @@ if (isset($_GET['toggle']) && isset($_GET['id'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_ujian'])) {
-    $judul = trim($_POST['judul_ujian']);
-    $deskripsi = trim($_POST['deskripsi']);
-    $status = in_array($_POST['status'], ['aktif', 'nonaktif']) ? $_POST['status'] : 'nonaktif';
+    $judul = trim($_POST['judul_ujian'] ?? '');
+    $deskripsi = trim($_POST['deskripsi'] ?? '');
+    $status = in_array($_POST['status'] ?? 'nonaktif', ['aktif', 'nonaktif']) ? $_POST['status'] : 'nonaktif';
+    $waktu_tersedia = isset($_POST['waktu_tersedia']) ? (int)$_POST['waktu_tersedia'] : 0;
+    
+    // Validasi ketat untuk acak_soal dan tampilkan_review
+    $acak_soal = 'tidak';
+    if (isset($_POST['acak_soal']) && ($_POST['acak_soal'] === 'ya' || $_POST['acak_soal'] === 'tidak')) {
+        $acak_soal = $_POST['acak_soal'];
+    }
+    
+    $tampilkan_review = 'tidak';
+    if (isset($_POST['tampilkan_review']) && ($_POST['tampilkan_review'] === 'ya' || $_POST['tampilkan_review'] === 'tidak')) {
+        $tampilkan_review = $_POST['tampilkan_review'];
+    }
+    
+    $tampilkan_skor = 'ya';
+    if ($has_tampilkan_skor && isset($_POST['tampilkan_skor']) && ($_POST['tampilkan_skor'] === 'ya' || $_POST['tampilkan_skor'] === 'tidak')) {
+        $tampilkan_skor = $_POST['tampilkan_skor'];
+    }
+    
     $edit_id = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
     $original_updated = $_POST['original_updated'] ?? '';
     
@@ -55,13 +95,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_ujian'])) {
                 $message = "Data telah diubah oleh pengguna lain. Silakan refresh dan coba lagi.";
                 $message_type = 'danger';
             } else {
-                $stmt = $conn->prepare("UPDATE ujian SET judul_ujian = ?, deskripsi = ?, status = ? WHERE id = ?");
-                $stmt->bind_param("sssi", $judul, $deskripsi, $status, $edit_id);
+                if ($has_tampilkan_skor) {
+                    $stmt = $conn->prepare("UPDATE ujian SET judul_ujian = ?, deskripsi = ?, status = ?, waktu_tersedia = ?, acak_soal = ?, tampilkan_review = ?, tampilkan_skor = ? WHERE id = ?");
+                    $stmt->bind_param("sssisssi", $judul, $deskripsi, $status, $waktu_tersedia, $acak_soal, $tampilkan_review, $tampilkan_skor, $edit_id);
+                } elseif ($has_new_columns) {
+                    $stmt = $conn->prepare("UPDATE ujian SET judul_ujian = ?, deskripsi = ?, status = ?, waktu_tersedia = ?, acak_soal = ?, tampilkan_review = ? WHERE id = ?");
+                    $stmt->bind_param("sssiisi", $judul, $deskripsi, $status, $waktu_tersedia, $acak_soal, $tampilkan_review, $edit_id);
+                } else {
+                    $stmt = $conn->prepare("UPDATE ujian SET judul_ujian = ?, deskripsi = ?, status = ? WHERE id = ?");
+                    $stmt->bind_param("sssi", $judul, $deskripsi, $status, $edit_id);
+                }
                 $message = "Ujian berhasil diperbarui!";
             }
         } else {
-            $stmt = $conn->prepare("INSERT INTO ujian (judul_ujian, deskripsi, status) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $judul, $deskripsi, $status);
+            if ($has_tampilkan_skor) {
+                $stmt = $conn->prepare("INSERT INTO ujian (judul_ujian, deskripsi, status, waktu_tersedia, acak_soal, tampilkan_review, tampilkan_skor) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssisss", $judul, $deskripsi, $status, $waktu_tersedia, $acak_soal, $tampilkan_review, $tampilkan_skor);
+            } elseif ($has_new_columns) {
+                $stmt = $conn->prepare("INSERT INTO ujian (judul_ujian, deskripsi, status, waktu_tersedia, acak_soal, tampilkan_review) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssiis", $judul, $deskripsi, $status, $waktu_tersedia, $acak_soal, $tampilkan_review);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO ujian (judul_ujian, deskripsi, status) VALUES (?, ?, ?)");
+                $stmt->bind_param("sss", $judul, $deskripsi, $status);
+            }
             $message = "Ujian berhasil ditambahkan!";
         }
         
@@ -509,13 +565,51 @@ if (isset($_GET['edit'])) {
                                    placeholder="Contoh: Ujian Matematika Semester 1">
                         </div>
                         
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label fw-semibold">Status</label>
                             <select name="status" class="form-select">
                                 <option value="nonaktif" <?= $edit_ujian && $edit_ujian['status'] === 'nonaktif' ? 'selected' : '' ?>>Nonaktif</option>
                                 <option value="aktif" <?= $edit_ujian && $edit_ujian['status'] === 'aktif' ? 'selected' : '' ?>>Aktif</option>
                             </select>
                         </div>
+
+                        <?php if ($has_new_columns): ?>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-semibold">Waktu (menit)</label>
+                            <input type="number" name="waktu_tersedia" class="form-control" 
+                                   value="<?= $edit_ujian ? htmlspecialchars($edit_ujian['waktu_tersedia'] ?? 0) : 0 ?>"
+                                   placeholder="0 = tidak terbatas" min="0">
+                            <small class="text-muted">0 = tidak terbatas</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Acak Urutan Soal</label>
+                            <select name="acak_soal" class="form-select">
+                                <option value="tidak" <?= $edit_ujian && ($edit_ujian['acak_soal'] ?? 'tidak') === 'tidak' ? 'selected' : '' ?>>Tidak</option>
+                                <option value="ya" <?= $edit_ujian && ($edit_ujian['acak_soal'] ?? 'tidak') === 'ya' ? 'selected' : '' ?>>Ya - Acak soal</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Tampilkan Review</label>
+                            <select name="tampilkan_review" class="form-select">
+                                <option value="tidak" <?= $edit_ujian && ($edit_ujian['tampilkan_review'] ?? 'tidak') === 'tidak' ? 'selected' : '' ?>>Tidak</option>
+                                <option value="ya" <?= $edit_ujian && ($edit_ujian['tampilkan_review'] ?? 'tidak') === 'ya' ? 'selected' : '' ?>>Ya - Tampilkan setelah submit</option>
+                            </select>
+                        </div>
+
+                        <?php if ($has_tampilkan_skor): ?>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Tampilkan Skor</label>
+                            <select name="tampilkan_skor" class="form-select">
+                                <option value="ya" <?= $edit_ujian && ($edit_ujian['tampilkan_skor'] ?? 'ya') === 'ya' ? 'selected' : '' ?>>Ya - Tampilkan skor setelah submit</option>
+                                <option value="tidak" <?= $edit_ujian && ($edit_ujian['tampilkan_skor'] ?? 'ya') === 'tidak' ? 'selected' : '' ?>>Tidak - Sembunyikan skor</option>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">
@@ -544,9 +638,17 @@ if (isset($_GET['edit'])) {
                             <tr>
                                 <th class="text-center" style="width: 50px;">No</th>
                                 <th>Judul</th>
-                                <th class="text-center" style="width: 100px;">Status</th>
-                                <th class="text-center" style="width: 120px;">Tgl Dibuat</th>
-                                <th style="min-width: 200px;">Link</th>
+                                <th class="text-center" style="width: 80px;">Status</th>
+                                <?php if ($has_new_columns): ?>
+                                <th class="text-center" style="width: 80px;">Waktu</th>
+                                <th class="text-center" style="width: 80px;">Acak</th>
+                                <th class="text-center" style="width: 80px;">Review</th>
+                                <?php if ($has_tampilkan_skor): ?>
+                                <th class="text-center" style="width: 80px;">Skor</th>
+                                <?php endif; ?>
+                                <?php endif; ?>
+                                <th class="text-center" style="width: 100px;">Tgl Dibuat</th>
+                                <th style="min-width: 180px;">Link</th>
                                 <th class="text-center" style="width: 150px;">Aksi</th>
                             </tr>
                         </thead>
@@ -563,6 +665,38 @@ if (isset($_GET['edit'])) {
                                         <?= strtoupper($row['status']) ?>
                                     </span>
                                 </td>
+                                <?php if ($has_new_columns): ?>
+                                <td class="text-center">
+                                    <?php if (($row['waktu_tersedia'] ?? 0) > 0): ?>
+                                        <span class="badge bg-info"><?= $row['waktu_tersedia'] ?> menit</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if (($row['acak_soal'] ?? 'tidak') === 'ya'): ?>
+                                        <span class="badge bg-warning"><i class="bi bi-shuffle"></i></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if (($row['tampilkan_review'] ?? 'tidak') === 'ya'): ?>
+                                        <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <?php if ($has_tampilkan_skor): ?>
+                                <td class="text-center">
+                                    <?php if (($row['tampilkan_skor'] ?? 'ya') === 'ya'): ?>
+                                        <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
+                                <?php endif; ?>
                                 <td class="text-center text-muted"><?= date('d/m/Y', strtotime($row['tgl_dibuat'])) ?></td>
                                 <td>
                                     <div class="input-group input-group-sm">

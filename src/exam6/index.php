@@ -225,12 +225,33 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
                             $stmt->close();
                             ?>
                             
-                            <div class="d-flex align-items-center mb-4 text-muted small">
+                            <div class="d-flex align-items-center mb-3 text-muted small">
                                 <div class="info-icon me-2">
                                     <i class="bi bi-question-circle"></i>
                                 </div>
                                 <span><?= $jml_soal ?> Soal</span>
                             </div>
+                            
+                            <?php 
+                            $result_cols = $conn->query("SHOW COLUMNS FROM ujian LIKE 'waktu_tersedia'");
+                            $waktu = 0;
+                            if ($result_cols && $result_cols->num_rows > 0) {
+                                $stmt = $conn->prepare("SELECT waktu_tersedia FROM ujian WHERE id = ?");
+                                $stmt->bind_param("i", $ujian['id']);
+                                $stmt->execute();
+                                $result_waktu = $stmt->get_result()->fetch_assoc();
+                                $waktu = $result_waktu['waktu_tersedia'] ?? 0;
+                                $stmt->close();
+                            }
+                            ?>
+                            <?php if ($waktu > 0): ?>
+                            <div class="d-flex align-items-center mb-4 text-muted small">
+                                <div class="info-icon me-2" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+                                <span><?= $waktu ?> menit</span>
+                            </div>
+                            <?php endif; ?>
                             
                             <a href="ujian.php?id=<?= $ujian['id'] ?>" class="btn btn-ujian text-white w-100">
                                 <i class="bi bi-pencil-square me-2"></i>Mulai Ujian
@@ -247,6 +268,30 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
                 <p class="text-muted">Silakan hubungi guru atau administrator untuk informasi lebih lanjut.</p>
             </div>
             <?php endif; ?>
+        </div>
+    </section>
+
+    <!-- Riwayat Nilai Section -->
+    <section class="py-4 bg-light">
+        <div class="container">
+            <div class="card">
+                <div class="card-body text-center py-4">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>Cek Riwayat Nilai
+                    </h5>
+                    <p class="text-muted mb-3">Masukkan NIS Anda untuk melihat riwayat nilai ujian</p>
+                    <form method="GET" action="riwayat.php" class="row justify-content-center g-3">
+                        <div class="col-md-4">
+                            <input type="text" name="nis" class="form-control form-control-lg" required placeholder="Masukkan NIS">
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-search me-2"></i>Cari
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </section>
 

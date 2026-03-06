@@ -65,7 +65,7 @@ if ($ujian['status'] !== 'aktif') {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT * FROM soal WHERE id_ujian = ? ORDER BY id");
+$stmt = $conn->prepare("SELECT * FROM soal WHERE id_ujian = ?");
 $stmt->bind_param("i", $id_ujian);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -74,6 +74,10 @@ while ($row = $result->fetch_assoc()) {
     $soal_list[] = $row;
 }
 $stmt->close();
+
+if (isset($ujian['acak_soal']) && $ujian['acak_soal'] === 'ya') {
+    shuffle($soal_list);
+}
 
 if (count($soal_list) === 0) {
     die("Belum ada soal. Hubungi guru.");
@@ -89,15 +93,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
         $message_type = 'danger';
     } else {
         $total_skor = 0;
+        $detail_jawaban = [];
+        
         foreach ($soal_list as $soal) {
             $jawaban = isset($_POST['jawaban_' . $soal['id']]) ? $_POST['jawaban_' . $soal['id']] : '';
-            if ($jawaban === $soal['kunci_jawaban']) {
+            $is_correct = ($jawaban === $soal['kunci_jawaban']);
+            
+            if ($is_correct) {
                 $total_skor += $soal['poin'];
             }
+            
+            $detail_jawaban[] = [
+                'soal_id' => $soal['id'],
+                'pertanyaan' => $soal['pertanyaan'],
+                'jawaban_siswa' => $jawaban,
+                'kunci_jawaban' => $soal['kunci_jawaban'],
+                'is_correct' => $is_correct,
+                'poin' => $soal['poin'],
+                'poin_diperoleh' => $is_correct ? $soal['poin'] : 0,
+                'opsi_a' => $soal['opsi_a'],
+                'opsi_b' => $soal['opsi_b'],
+                'opsi_c' => $soal['opsi_c'],
+                'opsi_d' => $soal['opsi_d'],
+                'opsi_e' => $soal['opsi_e']
+            ];
         }
         
-        $stmt = $conn->prepare("INSERT INTO hasil_ujian (id_ujian, nis, nama, kelas, total_skor) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("isssi", $id_ujian, $nis, $nama, $kelas, $total_skor);
+        $detail_jawaban_json = json_encode($detail_jawaban);
+        
+        $result_cols = $conn->query("SHOW COLUMNS FROM hasil_ujian LIKE 'detail_jawaban'");
+        if ($result_cols && $result_cols->num_rows > 0) {
+            $stmt = $conn->prepare("INSERT INTO hasil_ujian (id_ujian, nis, nama, kelas, total_skor, detail_jawaban) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("isssis", $id_ujian, $nis, $nama, $kelas, $total_skor, $detail_jawaban_json);
+        } else {
+            $stmt = $conn->prepare("INSERT INTO hasil_ujian (id_ujian, nis, nama, kelas, total_skor) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param("isssi", $id_ujian, $nis, $nama, $kelas, $total_skor);
+        }
         
         if ($stmt->execute()) {
             ?>
@@ -250,10 +281,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
                                 <h2 class="fw-bold mb-2" style="animation: slideUp 0.6s ease-out 0.4s both;">Selamat!</h2>
                                 <p class="text-muted mb-4" style="animation: slideUp 0.6s ease-out 0.5s both;">Jawaban Anda telah berhasil disubmit</p>
                                 
+                                <?php if (!isset($ujian['tampilkan_skor']) || $ujian['tampilkan_skor'] === 'ya'): ?>
                                 <div class="my-4" style="animation: slideUp 0.6s ease-out 0.6s both;">
                                     <p class="text-muted mb-2 fw-medium">Total Skor Anda</p>
                                     <div class="skor-box"><?= $total_skor ?></div>
                                 </div>
+                                <?php endif; ?>
                                 
                                 <div class="info-card mb-4">
                                     <div class="row">
@@ -274,6 +307,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
                                 <a href="index.php" class="btn btn-home text-white">
                                     <i class="bi bi-house-door me-2"></i>Kembali ke Halaman Utama
                                 </a>
+                                <?php if (isset($ujian['tampilkan_review']) && $ujian['tampilkan_review'] === 'ya'): ?>
+                                <a href="review.php?nis=<?= urlencode($nis) ?>&id_ujian=<?= $id_ujian ?>" class="btn btn-outline-primary mt-3">
+                                    <i class="bi bi-card-checklist me-2"></i>Lihat Pembahasan
+                                </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -570,9 +608,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
                     <p class="text-white-50 mb-0"><?= htmlspecialchars($ujian['deskripsi']) ?></p>
                 </div>
                 <div class="col-md-4 text-md-end">
-                    <div class="badge bg-white bg-opacity-25 text-white fs-6 px-3 py-2">
+                    <div class="badge bg-white bg-opacity-25 text-white fs-6 px-3 py-2 mb-2">
                         <i class="bi bi-question-circle me-2"></i><?= count($soal_list) ?> Soal
                     </div>
+                    <?php if (isset($ujian['waktu_tersedia']) && $ujian['waktu_tersedia'] > 0): ?>
+                    <div class="badge bg-warning fs-6 px-3 py-2" id="timerBadge">
+                        <i class="bi bi-clock me-2"></i><span id="timerDisplay"><?= $ujian['waktu_tersedia'] ?>:00</span>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -759,6 +802,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
         if (window.innerWidth < 768) {
             document.getElementById('progressIndicator').style.display = 'none';
         }
+        
+        // Timer functionality
+        <?php if (isset($ujian['waktu_tersedia']) && $ujian['waktu_tersedia'] > 0): ?>
+        let waktuTersedia = <?= (int)$ujian['waktu_tersedia'] ?> * 60;
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerBadge = document.getElementById('timerBadge');
+        
+        function updateTimer() {
+            const menit = Math.floor(waktuTersedia / 60);
+            const detik = waktuTersedia % 60;
+            timerDisplay.textContent = menit + ':' + (detik < 10 ? '0' : '') + detik;
+            
+            if (waktuTersedia <= 300) {
+                timerBadge.className = 'badge bg-danger fs-6 px-3 py-2';
+            } else if (waktuTersedia <= 600) {
+                timerBadge.className = 'badge bg-warning fs-6 px-3 py-2';
+            }
+            
+            if (waktuTersedia <= 0) {
+                alert('Waktu ujian telah habis! Jawaban akan otomatis dikirim.');
+                document.getElementById('formUjian').submit();
+                return;
+            }
+            waktuTersedia--;
+        }
+        
+        updateTimer();
+        setInterval(updateTimer, 1000);
+        <?php endif; ?>
     </script>
 </body>
 </html>
