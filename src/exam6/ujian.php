@@ -677,6 +677,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
                         'e' => ['text' => $soal['opsi_e'], 'img' => $soal['gambar_e']]
                     ];
                     
+                    if (isset($ujian['acak_opsi']) && $ujian['acak_opsi'] === 'ya') {
+                        $keys = array_keys($options);
+                        shuffle($keys);
+                        $shuffled_options = [];
+                        foreach ($keys as $new_key) {
+                            $shuffled_options[$new_key] = $options[$new_key];
+                        }
+                        $options = $shuffled_options;
+                    }
+                    
                     foreach ($options as $key => $opt): 
                     ?>
                     <label class="option-label">
