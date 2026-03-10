@@ -1,33 +1,51 @@
 <?php
 session_start();
 if (!isset($_SESSION['user'])) {
-    header("Location: ../login.php");
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
 require_once __DIR__ . '/../core/init.php';
 require_once __DIR__ . '/../core/Database.php';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (!isset($_POST['csrf_token']) || !verify_csrf($_POST['csrf_token'])) {
-        $_SESSION['error'] = "Token keamanan tidak valid!";
-        header("Location: index.php");
+header('Content-Type: application/json');
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+try {
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!$input) {
+        echo json_encode(['success' => false, 'message' => 'No input received']);
         exit;
     }
     
-    $tanggal = isset($_POST['tanggal']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['tanggal']) ? $_POST['tanggal'] : date('Y-m-d');
-    $semester_id = isset($_POST['semester_id']) ? (int)$_POST['semester_id'] : 0;
-    $statuses = $_POST['status'] ?? [];
+    $csrf_token = $input['csrf_token'] ?? '';
+    $tanggal = $input['tanggal'] ?? date('Y-m-d');
+    $semester_id = (int)($input['semester_id'] ?? 0);
+    $statuses = $input['status'] ?? [];
+    
+    if (!verify_csrf($csrf_token)) {
+        echo json_encode(['success' => false, 'message' => 'Token keamanan tidak valid!']);
+        exit;
+    }
     
     if (!$semester_id) {
-        $_SESSION['error'] = "Semester harus dipilih!";
-        header("Location: index.php");
+        echo json_encode(['success' => false, 'message' => 'Semester harus dipilih!']);
+        exit;
+    }
+    
+    if (empty($statuses)) {
+        echo json_encode(['success' => false, 'message' => 'Tidak ada data absensi untuk disimpan!']);
         exit;
     }
     
     $saved = 0;
     foreach ($statuses as $siswa_id => $status) {
         $siswa_id = (int)$siswa_id;
+        if ($siswa_id <= 0) continue;
         $status = in_array($status, ['Hadir', 'Sakit', 'Izin', 'Alfa', 'Terlambat']) ? $status : 'Hadir';
         
         $check = conn()->prepare("SELECT id FROM absensi WHERE siswa_id = ? AND tanggal = ? AND semester_id = ?");
@@ -47,7 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $saved++;
     }
     
-    $_SESSION['success'] = "Berhasil menyimpan $saved absensi!";
-    header("Location: index.php");
+    echo json_encode(['success' => true, 'message' => "Berhasil menyimpan $saved absensi!"]);
+    exit;
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     exit;
 }

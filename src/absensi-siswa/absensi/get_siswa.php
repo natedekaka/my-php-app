@@ -23,11 +23,16 @@ $query = "
     SELECT 
         s.*,
         k.nama_kelas,
-        COALESCE(rekap.hadir, 0) AS total_hadir,
-        COALESCE(rekap.terlambat, 0) AS total_terlambat,
-        COALESCE(rekap.sakit, 0) AS total_sakit,
-        COALESCE(rekap.izin, 0) AS total_izin,
-        COALESCE(rekap.alfa, 0) AS total_alfa
+        COALESCE(rekap_smt1.hadir, 0) AS total_hadir_smt1,
+        COALESCE(rekap_smt1.terlambat, 0) AS total_terlambat_smt1,
+        COALESCE(rekap_smt1.sakit, 0) AS total_sakit_smt1,
+        COALESCE(rekap_smt1.izin, 0) AS total_izin_smt1,
+        COALESCE(rekap_smt1.alfa, 0) AS total_alfa_smt1,
+        COALESCE(rekap_smt2.hadir, 0) AS total_hadir_smt2,
+        COALESCE(rekap_smt2.terlambat, 0) AS total_terlambat_smt2,
+        COALESCE(rekap_smt2.sakit, 0) AS total_sakit_smt2,
+        COALESCE(rekap_smt2.izin, 0) AS total_izin_smt2,
+        COALESCE(rekap_smt2.alfa, 0) AS total_alfa_smt2
     FROM siswa s
     JOIN kelas k ON s.kelas_id = k.id
     LEFT JOIN (
@@ -38,10 +43,24 @@ $query = "
             SUM(CASE WHEN status = 'Sakit' THEN 1 ELSE 0 END) AS sakit,
             SUM(CASE WHEN status = 'Izin' THEN 1 ELSE 0 END) AS izin,
             SUM(CASE WHEN status = 'Alfa' THEN 1 ELSE 0 END) AS alfa
-        FROM absensi
-        WHERE semester_id = " . (int)$semester_id . "
+        FROM absensi a
+        INNER JOIN semester sem ON a.semester_id = sem.id
+        WHERE sem.semester = 1
         GROUP BY siswa_id
-    ) rekap ON s.id = rekap.siswa_id
+    ) rekap_smt1 ON s.id = rekap_smt1.siswa_id
+    LEFT JOIN (
+        SELECT 
+            siswa_id,
+            SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) AS hadir,
+            SUM(CASE WHEN status = 'Terlambat' THEN 1 ELSE 0 END) AS terlambat,
+            SUM(CASE WHEN status = 'Sakit' THEN 1 ELSE 0 END) AS sakit,
+            SUM(CASE WHEN status = 'Izin' THEN 1 ELSE 0 END) AS izin,
+            SUM(CASE WHEN status = 'Alfa' THEN 1 ELSE 0 END) AS alfa
+        FROM absensi a
+        INNER JOIN semester sem ON a.semester_id = sem.id
+        WHERE sem.semester = 2
+        GROUP BY siswa_id
+    ) rekap_smt2 ON s.id = rekap_smt2.siswa_id
 ";
 
 if ($kelas_id === 'all') {
@@ -77,19 +96,33 @@ if ($result && $result->num_rows > 0):
     .table-absensi th, .table-absensi td {
         vertical-align: middle;
         text-align: center;
-        padding: 0.75rem;
+        padding: 0.5rem;
     }
     .table-absensi td:first-child { text-align: center; }
     .table-absensi td:nth-child(3) { text-align: left; }
     .table-absensi tbody tr:hover { background: var(--wa-light); }
+    .table-absensi th.col-hadir, .table-absensi td.col-hadir { width: 60px; min-width: 60px; }
+    .table-absensi th.col-status, .table-absensi td.col-status { width: 50px; min-width: 50px; }
+    .table-absensi th.col-rekap, .table-absensi td.col-rekap { min-width: 180px; white-space: nowrap; }
     .rekap-badge {
-        font-size: 0.75rem;
-        background: #f1f1f1;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 2px 6px;
+        font-size: 0.7rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 2px 4px;
         font-family: monospace;
+        display: inline-flex;
+        gap: 2px;
     }
+    .rekap-badge span {
+        padding: 1px 3px;
+        border-radius: 3px;
+    }
+    .rekap-h { background: #d4edda; color: #155724; font-weight: bold; }
+    .rekap-t { background: #fff3cd; color: #856404; font-weight: bold; }
+    .rekap-s { background: #e2e3e5; color: #383d41; font-weight: bold; }
+    .rekap-i { background: #d1ecf1; color: #0c5460; font-weight: bold; }
+    .rekap-a { background: #f8d7da; color: #721c24; font-weight: bold; }
     .status-badge {
         display: inline-block;
         padding: 4px 10px;
@@ -119,12 +152,13 @@ if ($result && $result->num_rows > 0):
             <?php endif; ?>
             <th>No</th>
             <th>Nama Siswa</th>
-            <th>Hadir</th>
-            <th>Terlambat</th>
-            <th>Sakit</th>
-            <th>Izin</th>
-            <th>Alfa</th>
-            <th>Rekap</th>
+            <th class="col-hadir">Hadir</th>
+            <th class="col-status">T</th>
+            <th class="col-status">S</th>
+            <th class="col-status">I</th>
+            <th class="col-status">A</th>
+            <th class="col-rekap">Semester 1</th>
+            <th class="col-rekap">Semester 2</th>
             <th>Status</th>
         </tr>
     </thead>
@@ -154,18 +188,27 @@ if ($result && $result->num_rows > 0):
                 <strong><?= htmlspecialchars($row['nama']) ?></strong>
                 <input type="hidden" name="siswa_id[]" value="<?= $row['id'] ?>">
             </td>
-            <td><input type="radio" name="status[<?= $row['id'] ?>]" value="Hadir" <?= ($status_sebelumnya == 'Hadir') ? 'checked' : $hadir_checked ?>></td>
-            <td><input type="radio" name="status[<?= $row['id'] ?>]" value="Terlambat" <?= ($status_sebelumnya == 'Terlambat') ? 'checked' : '' ?>></td>
-            <td><input type="radio" name="status[<?= $row['id'] ?>]" value="Sakit" <?= ($status_sebelumnya == 'Sakit') ? 'checked' : '' ?>></td>
-            <td><input type="radio" name="status[<?= $row['id'] ?>]" value="Izin" <?= ($status_sebelumnya == 'Izin') ? 'checked' : '' ?>></td>
-            <td><input type="radio" name="status[<?= $row['id'] ?>]" value="Alfa" <?= ($status_sebelumnya == 'Alfa') ? 'checked' : '' ?>></td>
-            <td>
+            <td class="col-hadir"><input type="radio" name="status[<?= $row['id'] ?>]" value="Hadir" <?= ($status_sebelumnya == 'Hadir') ? 'checked' : $hadir_checked ?>></td>
+            <td class="col-status"><input type="radio" name="status[<?= $row['id'] ?>]" value="Terlambat" <?= ($status_sebelumnya == 'Terlambat') ? 'checked' : '' ?>></td>
+            <td class="col-status"><input type="radio" name="status[<?= $row['id'] ?>]" value="Sakit" <?= ($status_sebelumnya == 'Sakit') ? 'checked' : '' ?>></td>
+            <td class="col-status"><input type="radio" name="status[<?= $row['id'] ?>]" value="Izin" <?= ($status_sebelumnya == 'Izin') ? 'checked' : '' ?>></td>
+            <td class="col-status"><input type="radio" name="status[<?= $row['id'] ?>]" value="Alfa" <?= ($status_sebelumnya == 'Alfa') ? 'checked' : '' ?>></td>
+            <td class="col-rekap">
                 <span class="rekap-badge">
-                    H:<?= (int)$row['total_hadir'] ?> | 
-                    T:<?= (int)$row['total_terlambat'] ?> | 
-                    S:<?= (int)$row['total_sakit'] ?> | 
-                    I:<?= (int)$row['total_izin'] ?> | 
-                    A:<?= (int)$row['total_alfa'] ?>
+                    <span class="rekap-h">H:<?= (int)$row['total_hadir_smt1'] ?></span>
+                    <span class="rekap-t">T:<?= (int)$row['total_terlambat_smt1'] ?></span>
+                    <span class="rekap-s">S:<?= (int)$row['total_sakit_smt1'] ?></span>
+                    <span class="rekap-i">I:<?= (int)$row['total_izin_smt1'] ?></span>
+                    <span class="rekap-a">A:<?= (int)$row['total_alfa_smt1'] ?></span>
+                </span>
+            </td>
+            <td class="col-rekap">
+                <span class="rekap-badge">
+                    <span class="rekap-h">H:<?= (int)$row['total_hadir_smt2'] ?></span>
+                    <span class="rekap-t">T:<?= (int)$row['total_terlambat_smt2'] ?></span>
+                    <span class="rekap-s">S:<?= (int)$row['total_sakit_smt2'] ?></span>
+                    <span class="rekap-i">I:<?= (int)$row['total_izin_smt2'] ?></span>
+                    <span class="rekap-a">A:<?= (int)$row['total_alfa_smt2'] ?></span>
                 </span>
             </td>
             <td>

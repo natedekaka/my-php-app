@@ -9,62 +9,6 @@ require_once '../core/init.php';
 require_once '../core/Database.php';
 
 $title = 'Input Absensi - Sistem Absensi Siswa';
-$scripts = '<script>
-function toggleElements(show) {
-    const display = show ? "block" : "none";
-    document.getElementById("tombolSimpanAtas").style.display = display;
-    document.getElementById("tombolSimpanBawah").style.display = display;
-    document.getElementById("searchContainer").style.display = display;
-}
-
-document.getElementById("semester").addEventListener("change", function() {
-    document.getElementById("semester_id").value = this.value;
-    loadSiswa();
-});
-
-document.getElementById("kelas").addEventListener("change", function() {
-    const kelasId = this.value;
-    document.getElementById("kelas_id").value = kelasId;
-    if (kelasId) {
-        toggleElements(true);
-        loadSiswa();
-    } else {
-        toggleElements(false);
-        document.getElementById("siswa-container").innerHTML = "";
-    }
-});
-
-document.getElementById("tanggal").addEventListener("change", loadSiswa);
-document.getElementById("search_nama").addEventListener("input", loadSiswa);
-
-function loadSiswa() {
-    const kelasId = document.getElementById("kelas").value;
-    const tanggal = document.getElementById("tanggal").value;
-    const semesterId = document.getElementById("semester").value;
-    const search = document.getElementById("search_nama").value;
-
-    if (kelasId && semesterId) {
-        let url = "get_siswa.php?kelas_id=" + encodeURIComponent(kelasId) + 
-                  "&tanggal=" + encodeURIComponent(tanggal) + 
-                  "&semester_id=" + encodeURIComponent(semesterId);
-        if (search) url += "&search=" + encodeURIComponent(search);
-
-        fetch(url)
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById("siswa-container").innerHTML = data;
-            })
-            .catch(error => {
-                console.error("Error:", error);
-                document.getElementById("siswa-container").innerHTML = 
-                    "<div class=\"alert alert-danger\">Gagal memuat data siswa.</div>";
-            });
-    } else if (kelasId) {
-        document.getElementById("siswa-container").innerHTML = 
-            "<div class=\"alert alert-warning\">Pilih semester terlebih dahulu!</div>";
-    }
-}
-</script>';
 
 ob_start();
 ?>
@@ -75,7 +19,7 @@ ob_start();
     </h2>
 </div>
 
-<form method="POST" action="proses.php" id="form-absensi">
+<form id="form-absensi">
     <?= csrf_field() ?>
     <input type="hidden" name="kelas_id" id="kelas_id">
     <input type="hidden" name="semester_id" id="semester_id">
@@ -153,4 +97,136 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
+
+$scripts = "<script>
+window.onload = function() {
+    document.getElementById('form-absensi').addEventListener('submit', function(e) {
+        e.preventDefault();
+        simpanAbsensi(e);
+        return false;
+    });
+};
+
+function toggleElements(show) {
+    const display = show ? 'block' : 'none';
+    document.getElementById('tombolSimpanAtas').style.display = display;
+    document.getElementById('tombolSimpanBawah').style.display = display;
+    document.getElementById('searchContainer').style.display = display;
+}
+
+document.getElementById('semester').addEventListener('change', function() {
+    document.getElementById('semester_id').value = this.value;
+    loadSiswa();
+});
+
+document.getElementById('kelas').addEventListener('change', function() {
+    const kelasId = this.value;
+    document.getElementById('kelas_id').value = kelasId;
+    if (kelasId) {
+        toggleElements(true);
+        loadSiswa();
+    } else {
+        toggleElements(false);
+        document.getElementById('siswa-container').innerHTML = '';
+    }
+});
+
+document.getElementById('tanggal').addEventListener('change', loadSiswa);
+document.getElementById('search_nama').addEventListener('input', loadSiswa);
+
+function loadSiswa() {
+    const kelasId = document.getElementById('kelas').value;
+    const tanggal = document.getElementById('tanggal').value;
+    const semesterId = document.getElementById('semester').value;
+    const search = document.getElementById('search_nama').value;
+
+    if (kelasId && semesterId) {
+        let url = 'get_siswa.php?kelas_id=' + encodeURIComponent(kelasId) + 
+                  '&tanggal=' + encodeURIComponent(tanggal) + 
+                  '&semester_id=' + encodeURIComponent(semesterId);
+        if (search) url += '&search=' + encodeURIComponent(search);
+
+        fetch(url)
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('siswa-container').innerHTML = data;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('siswa-container').innerHTML = '<div class=\"alert alert-danger\">Gagal memuat data siswa.</div>';
+            });
+    } else if (kelasId) {
+        document.getElementById('siswa-container').innerHTML = '<div class=\"alert alert-warning\">Pilih semester terlebih dahulu!</div>';
+    }
+}
+
+function simpanAbsensi(e) {
+    e.preventDefault();
+    
+    const form = document.getElementById('form-absensi');
+    const submitBtn = document.querySelector('#tombolSimpanBawah button');
+    const originalText = submitBtn.innerHTML;
+    
+    const formData = new FormData(form);
+    const csrfToken = formData.get('csrf_token');
+    const tanggal = document.getElementById('tanggal').value;
+    const semesterId = document.getElementById('semester').value;
+    
+    const statuses = {};
+    const radioButtons = document.querySelectorAll('input[type=\"radio\"]:checked');
+    for (let i = 0; i < radioButtons.length; i++) {
+        const radio = radioButtons[i];
+        if (radio.name.indexOf('status[') === 0) {
+            const match = radio.name.match(/status\[(\d+)\]/);
+            if (match) {
+                statuses[match[1]] = radio.value;
+            }
+        }
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class=\"fas fa-spinner fa-spin me-2\"></i>Menyimpan...';
+    
+    fetch('proses.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            csrf_token: csrfToken,
+            tanggal: tanggal,
+            semester_id: semesterId,
+            status: statuses
+        })
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.text();
+    })
+    .then(text => {
+        console.log('Response text:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert(data.message);
+                loadSiswa();
+            } else {
+                alert(data.message);
+            }
+        } catch(e) {
+            console.error('JSON parse error:', e);
+            alert('Respons server tidak valid: ' + text.substring(0, 200));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat menyimpan! Error: ' + error.message);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+}
+</script>";
+
 require_once '../views/layout.php';
