@@ -69,13 +69,14 @@ function loadSiswa() {
 ob_start();
 ?>
 
-<div class="d-flex align-items-center mb-4">
+<div class="d-flex align-items-center mb-4 flex-wrap gap-2">
     <h2 class="fw-bold text-wa-dark mb-0">
         <i class="fas fa-clipboard-check me-2"></i>Input Absensi Harian
     </h2>
 </div>
 
 <form method="POST" action="proses.php" id="form-absensi">
+    <?= csrf_field() ?>
     <input type="hidden" name="kelas_id" id="kelas_id">
     <input type="hidden" name="semester_id" id="semester_id">
 

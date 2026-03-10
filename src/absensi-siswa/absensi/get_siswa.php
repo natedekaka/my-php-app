@@ -9,12 +9,12 @@ if (!isset($_SESSION['user'])) {
 require_once __DIR__ . '/../core/init.php';
 require_once __DIR__ . '/../core/Database.php';
 
-$kelas_id = $_GET['kelas_id'] ?? '';
-$tanggal = $_GET['tanggal'] ?? date('Y-m-d');
-$semester_id = $_GET['semester_id'] ?? null;
+$kelas_id = isset($_GET['kelas_id']) ? $_GET['kelas_id'] : '';
+$tanggal = isset($_GET['tanggal']) ? $_GET['tanggal'] : date('Y-m-d');
+$semester_id = isset($_GET['semester_id']) ? (int)$_GET['semester_id'] : 0;
 $search = isset($_GET['search']) ? db()->escape($_GET['search']) : '';
 
-if (!$kelas_id || !$semester_id) {
+if (!$kelas_id || !$semester_id || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
     echo '<div class="alert alert-warning">Pilih kelas dan semester terlebih dahulu!</div>';
     exit;
 }

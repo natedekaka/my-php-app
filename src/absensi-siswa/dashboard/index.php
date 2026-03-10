@@ -16,7 +16,11 @@ function updateClock() {
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
-    document.getElementById("clock").innerHTML = hours + ":" + minutes + ":" + seconds;
+    const time = hours + ":" + minutes + ":" + seconds;
+    document.getElementById("clock").innerHTML = time;
+    if(document.getElementById("clock-mobile")) {
+        document.getElementById("clock-mobile").innerHTML = time;
+    }
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -56,14 +60,20 @@ if ($status_query) {
 $kehadiran_persen = $stats['siswa'] > 0 ? round(($today_status['Hadir'] / $stats['siswa']) * 100, 1) : 0;
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="fw-bold text-wa-dark mb-0">
         <i class="fas fa-tachometer-alt me-2"></i>Dashboard
     </h2>
-    <div class="text-end">
+    <div class="text-end d-none d-md-block">
         <div id="clock" class="fw-bold text-wa-dark" style="font-size: 1.5rem; font-family: monospace;"></div>
         <small class="text-muted"><?= date('l, d F Y') ?></small>
     </div>
+</div>
+
+<!-- Mobile clock -->
+<div class="d-md-none mb-3 text-center">
+    <div id="clock-mobile" class="fw-bold text-wa-dark" style="font-size: 1.25rem; font-family: monospace;"></div>
+    <small class="text-muted"><?= date('l, d F Y') ?></small>
 </div>
 
 <form method="GET" class="card-custom p-3 mb-4">
@@ -220,14 +230,14 @@ $kehadiran_persen = $stats['siswa'] > 0 ? round(($today_status['Hadir'] / $stats
                         </thead>
                         <tbody>
                             <?php
-                            $recent = conn()->query("
-                                SELECT a.tanggal, a.status, s.nama, k.nama_kelas 
-                                FROM absensi a
-                                JOIN siswa s ON a.siswa_id = s.id
-                                JOIN kelas k ON s.kelas_id = k.id
-                                $where_semester
-                                ORDER BY a.id DESC LIMIT 10
-                            ");
+$recent = conn()->query("
+    SELECT a.tanggal, a.status, s.nama, k.nama_kelas 
+    FROM absensi a
+    JOIN siswa s ON a.siswa_id = s.id
+    JOIN kelas k ON s.kelas_id = k.id
+    WHERE 1=1 $where_semester
+    ORDER BY a.id DESC LIMIT 10
+");
                             
                             if ($recent && $recent->num_rows > 0):
                                 while ($row = $recent->fetch_assoc()):

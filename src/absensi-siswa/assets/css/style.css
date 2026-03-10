@@ -291,6 +291,58 @@ body {
 }
 
 /* Responsive */
+@media (max-width: 991px) {
+    .navbar {
+        padding: 0.5rem 1rem;
+    }
+    
+    .navbar-collapse {
+        background-color: var(--wa-dark);
+        padding: 1rem;
+        border-radius: 0 0 12px 12px;
+        margin-top: 0.5rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .navbar-nav .nav-link:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .dropdown-menu {
+        background-color: rgba(0,0,0,0.4);
+        border: none;
+        padding: 0.5rem;
+        margin-left: 1rem;
+    }
+    
+    .dropdown-item {
+        color: rgba(255,255,255,0.9);
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
+    }
+    
+    .dropdown-item:hover {
+        background-color: rgba(255,255,255,0.15);
+        color: white;
+    }
+    
+    .navbar-toggler {
+        padding: 0.4rem 0.6rem;
+        font-size: 1rem;
+    }
+}
+
 @media (max-width: 768px) {
     .container-main {
         padding: 1rem;
@@ -298,5 +350,152 @@ body {
     
     .card-custom {
         border-radius: 8px;
+    }
+    
+    .card-header-custom {
+        border-radius: 8px 8px 0 0;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+    
+    h2 {
+        font-size: 1.25rem;
+    }
+    
+    .btn-wa-primary, .btn-wa-success {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .form-select-custom {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .table-custom th, 
+    .table-custom td {
+        padding: 0.5rem;
+        font-size: 0.85rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .card-custom .p-4,
+    .card-custom .p-3 {
+        padding: 1rem !important;
+    }
+    
+    .d-flex.gap-2 {
+        gap: 0.5rem !important;
+    }
+    
+    .d-flex.gap-2 .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-content {
+        border-radius: 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-main {
+        padding: 0.75rem;
+    }
+    
+    .row.g-3 {
+        --bs-gutter-x: 0.75rem;
+    }
+    
+    .card-custom {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .table-absensi th,
+    .table-absensi td {
+        padding: 0.35rem 0.25rem;
+        font-size: 0.75rem;
+    }
+    
+    .table-absensi input[type="radio"] {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .rekap-badge {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+    
+    .pagination-custom .page-link {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
+    }
+    
+    .class-card {
+        border-radius: 12px;
+    }
+    
+    .siswa-card {
+        border-radius: 12px;
+    }
+    
+    .login-card {
+        border-radius: 12px;
+    }
+    
+    .login-header {
+        padding: 1.5rem;
+    }
+    
+    .login-header h3 {
+        font-size: 1.25rem;
+    }
+    
+    /* Table responsive fixes */
+    .table-responsive-sm {
+        font-size: 0.75rem;
+    }
+    
+    .table-responsive-sm th,
+    .table-responsive-sm td {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .table-rekap {
+        font-size: 0.7rem;
+    }
+    
+    .table-rekap th,
+    .table-rekap td {
+        padding: 0.25rem;
+    }
+    
+    .avatar-mini {
+        width: 24px;
+        height: 24px;
+        font-size: 0.65rem;
+    }
+    
+    .rekap-badge {
+        display: inline-block;
+        padding: 1px 3px;
+        font-size: 0.6rem;
     }
 }

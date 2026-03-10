@@ -23,43 +23,43 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="<?= BASE_URL ?>dashboard/">
-                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= BASE_URL ?>absensi/">
-                            <i class="fas fa-clipboard-check me-1"></i> Absensi
+                            <i class="fas fa-clipboard-check me-2"></i>Absensi
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= BASE_URL ?>siswa/">
-                            <i class="fas fa-users me-1"></i> Siswa
+                            <i class="fas fa-users me-2"></i>Siswa
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= BASE_URL ?>kelas/">
-                            <i class="fas fa-door-open me-1"></i> Kelas
+                            <i class="fas fa-door-open me-2"></i>Kelas
                         </a>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                            <i class="fas fa-cog me-1"></i> Pengaturan
+                            <i class="fas fa-cog me-2"></i>Pengaturan
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="<?= BASE_URL ?>kenaikan/">Kenaikan Kelas & Kelulusan</a></li>
-                            <li><a class="dropdown-item" href="<?= BASE_URL ?>tahun_ajaran/">Tahun Ajaran</a></li>
-                            <li><a class="dropdown-item" href="<?= BASE_URL ?>rekap/kelas/">Rekap Absensi</a></li>
+                            <li><a class="dropdown-item" href="<?= BASE_URL ?>kenaikan/"><i class="fas fa-graduation-cap me-2"></i>Kenaikan Kelas & Kelulusan</a></li>
+                            <li><a class="dropdown-item" href="<?= BASE_URL ?>tahun_ajaran/"><i class="fas fa-calendar me-2"></i>Tahun Ajaran</a></li>
+                            <li><a class="dropdown-item" href="<?= BASE_URL ?>rekap/kelas.php"><i class="fas fa-chart-bar me-2"></i>Rekap Absensi</a></li>
                         </ul>
                     </li>
                 </ul>
-                <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2">
                     <span class="text-white">
                         <i class="fas fa-user-circle me-1"></i>
                         <?= htmlspecialchars($_SESSION['user']['nama']) ?>
                         <span class="badge bg-success ms-1"><?= ucfirst($_SESSION['user']['role']) ?></span>
                     </span>
                     <a href="<?= BASE_URL ?>logout.php" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-sign-out-alt"></i> Keluar
+                        <i class="fas fa-sign-out-alt me-1"></i><span class="d-none d-md-inline">Keluar</span>
                     </a>
                 </div>
             </div>

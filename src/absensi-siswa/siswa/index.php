@@ -139,19 +139,19 @@ document.querySelectorAll('.siswa-checkbox').forEach(cb => {
 });
 </script>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="fw-bold text-wa-dark mb-0">
         <i class="fas fa-users me-2"></i>Data Siswa
     </h2>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a href="tambah.php" class="btn btn-wa-primary">
-            <i class="fas fa-user-plus me-2"></i>Tambah
+            <i class="fas fa-user-plus me-1 me-md-2"></i><span class="d-none d-md-inline">Tambah</span>
         </a>
         <a href="import.php" class="btn btn-wa-success">
-            <i class="fas fa-file-import me-2"></i>Import
+            <i class="fas fa-file-import me-1 me-md-2"></i><span class="d-none d-md-inline">Import</span>
         </a>
         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-            <i class="fas fa-trash me-2"></i>Hapus
+            <i class="fas fa-trash me-1 me-md-2"></i><span class="d-none d-md-inline">Hapus</span>
         </button>
     </div>
 </div>
@@ -239,13 +239,15 @@ document.querySelectorAll('.siswa-checkbox').forEach(cb => {
                         </span>
                     </td>
                     <td class="text-center">
-                        <a href="edit.php?id=<?= $row['id'] ?>" class="btn btn-action btn-warning" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="hapus.php?id=<?= $row['id'] ?>" class="btn btn-action btn-danger" title="Hapus"
-                           onclick="return confirm('Yakin hapus <?= htmlspecialchars($row['nama']) ?>?')">
-                            <i class="fas fa-trash"></i>
-                        </a>
+                        <div class="d-flex gap-1 justify-content-center">
+                            <a href="edit.php?id=<?= $row['id'] ?>" class="btn btn-action btn-warning" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="hapus.php?id=<?= $row['id'] ?>" class="btn btn-action btn-danger" title="Hapus"
+                               onclick="return confirm('Yakin hapus <?= htmlspecialchars($row['nama']) ?>?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 <?php endwhile; ?>

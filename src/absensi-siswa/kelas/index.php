@@ -68,16 +68,16 @@ $kelas = conn()->query("SELECT k.*, COUNT(s.id) as total_siswa
 }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="fw-bold text-wa-dark mb-0">
         <i class="fas fa-door-open me-2"></i>Data Kelas
     </h2>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a href="tambah.php" class="btn btn-wa-primary">
-            <i class="fas fa-plus me-2"></i>Tambah
+            <i class="fas fa-plus me-1 me-md-2"></i><span class="d-none d-md-inline">Tambah</span>
         </a>
         <a href="import.php" class="btn btn-wa-success">
-            <i class="fas fa-file-import me-2"></i>Import
+            <i class="fas fa-file-import me-1 me-md-2"></i><span class="d-none d-md-inline">Import</span>
         </a>
     </div>
 </div>

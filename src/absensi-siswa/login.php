@@ -39,6 +39,7 @@ body {
             <?php endif; ?>
 
             <form action="proses_login.php" method="POST">
+                <?= csrf_field() ?>
                 <div class="mb-3">
                     <label class="form-label">Username</label>
                     <div class="input-group">
