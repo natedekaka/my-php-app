@@ -15,6 +15,19 @@ $type = $_GET['type'] ?? 'pdf';
 $tgl_awal = preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_awal) ? $tgl_awal : date('Y-m-01');
 $tgl_akhir = preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_akhir) ? $tgl_akhir : date('Y-m-t');
 
+$tahun_ajaran_aktif = conn()->query("SELECT id FROM tahun_ajaran WHERE is_active = 1")->fetch_assoc();
+$ta_id = $tahun_ajaran_aktif['id'] ?? 0;
+
+if ($ta_id > 0) {
+    $semester = conn()->query("SELECT * FROM semester WHERE semester IN (1, 2) AND tahun_ajaran_id = $ta_id ORDER BY semester ASC");
+} else {
+    $semester = conn()->query("SELECT * FROM semester WHERE semester IN (1, 2) ORDER BY tahun_ajaran_id DESC, semester ASC LIMIT 2");
+}
+$semester_dates = [];
+while ($s = $semester->fetch_assoc()) {
+    $semester_dates[$s['semester']] = $s;
+}
+
 if (!$kelas_id) {
     die('Kelas harus dipilih.');
 }
@@ -28,7 +41,25 @@ if (!$kelas) {
     die('Kelas tidak ditemukan.');
 }
 
-function getSiswaDataByDateRange($kelas_id, $tgl_awal, $tgl_akhir) {
+function getDateRangeForSemester($semester_num, $semester_dates, $tgl_awal, $tgl_akhir) {
+    if (!isset($semester_dates[$semester_num])) {
+        return null;
+    }
+    $s = $semester_dates[$semester_num];
+    $smt_mulai = $s['tgl_mulai'];
+    $smt_selesai = $s['tgl_selesai'];
+    
+    $range_awal = max($tgl_awal, $smt_mulai);
+    $range_akhir = min($tgl_akhir, $smt_selesai);
+    
+    if ($range_awal > $range_akhir) {
+        return null;
+    }
+    
+    return ['awal' => $range_awal, 'akhir' => $range_akhir, 'id' => $s['id']];
+}
+
+function getSiswaDataByDateRange($kelas_id, $tgl_awal, $tgl_akhir, $semester_id) {
     $stmt = conn()->prepare("
         SELECT s.id, s.nama, s.nis, s.jenis_kelamin,
             COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) as hadir,
@@ -38,40 +69,21 @@ function getSiswaDataByDateRange($kelas_id, $tgl_awal, $tgl_akhir) {
             COALESCE(SUM(CASE WHEN a.status = 'Alfa' THEN 1 ELSE 0 END), 0) as alfa
         FROM siswa s
         LEFT JOIN absensi a ON s.id = a.siswa_id 
-            AND a.tanggal BETWEEN ? AND ?
+            AND a.tanggal BETWEEN ? AND ? AND a.semester_id = ?
         WHERE s.kelas_id = ? AND (s.status = 'aktif' OR s.status IS NULL)
         GROUP BY s.id, s.nama, s.nis, s.jenis_kelamin
         ORDER BY s.nama ASC
     ");
-    $stmt->bind_param("ssi", $tgl_awal, $tgl_akhir, $kelas_id);
+    $stmt->bind_param("ssii", $tgl_awal, $tgl_akhir, $semester_id, $kelas_id);
     $stmt->execute();
     return $stmt->get_result();
 }
 
-function getDateRangeForSemester($semester, $tgl_awal, $tgl_akhir) {
-    $tahun_awal = date('Y', strtotime($tgl_awal));
-    $tahun_akhir = date('Y', strtotime($tgl_akhir));
-    
-    if ($semester == 1) {
-        $range_awal = max($tgl_awal, $tahun_awal . '-07-01');
-        $range_akhir = min($tgl_akhir, $tahun_awal . '-12-31');
-    } else {
-        $range_awal = max($tgl_awal, $tahun_akhir . '-01-01');
-        $range_akhir = min($tgl_akhir, $tahun_akhir . '-06-30');
-    }
-    
-    if ($range_awal > $range_akhir) {
-        return null;
-    }
-    
-    return ['awal' => $range_awal, 'akhir' => $range_akhir];
-}
+$smt1_range = getDateRangeForSemester(1, $semester_dates, $tgl_awal, $tgl_akhir);
+$smt2_range = getDateRangeForSemester(2, $semester_dates, $tgl_awal, $tgl_akhir);
 
-$smt1_range = getDateRangeForSemester(1, $tgl_awal, $tgl_akhir);
-$smt2_range = getDateRangeForSemester(2, $tgl_awal, $tgl_akhir);
-
-$siswa_smt1 = $smt1_range ? getSiswaDataByDateRange($kelas_id, $smt1_range['awal'], $smt1_range['akhir']) : null;
-$siswa_smt2 = $smt2_range ? getSiswaDataByDateRange($kelas_id, $smt2_range['awal'], $smt2_range['akhir']) : null;
+$siswa_smt1 = $smt1_range ? getSiswaDataByDateRange($kelas_id, $smt1_range['awal'], $smt1_range['akhir'], $smt1_range['id']) : null;
+$siswa_smt2 = $smt2_range ? getSiswaDataByDateRange($kelas_id, $smt2_range['awal'], $smt2_range['akhir'], $smt2_range['id']) : null;
 
 $data_smt1 = [];
 if ($siswa_smt1 && $siswa_smt1->num_rows > 0) {

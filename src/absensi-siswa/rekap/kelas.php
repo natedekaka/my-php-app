@@ -8,7 +8,14 @@ if (!isset($_SESSION['user'])) {
 require_once '../core/init.php';
 require_once '../core/Database.php';
 
-$semester = conn()->query("SELECT * FROM semester WHERE semester IN (1, 2) ORDER BY tahun_ajaran_id DESC, semester ASC");
+$tahun_ajaran_aktif = conn()->query("SELECT id FROM tahun_ajaran WHERE is_active = 1")->fetch_assoc();
+$ta_id = $tahun_ajaran_aktif['id'] ?? 0;
+
+if ($ta_id > 0) {
+    $semester = conn()->query("SELECT * FROM semester WHERE semester IN (1, 2) AND tahun_ajaran_id = $ta_id ORDER BY semester ASC");
+} else {
+    $semester = conn()->query("SELECT * FROM semester WHERE semester IN (1, 2) ORDER BY tahun_ajaran_id DESC, semester ASC LIMIT 2");
+}
 $semester_dates = [];
 while ($s = $semester->fetch_assoc()) {
     $semester_dates[$s['semester']] = $s;
@@ -43,7 +50,7 @@ function getSemesterDateRange($semester_num, $semester_dates, $tgl_awal, $tgl_ak
         return ['awal' => $range_awal, 'akhir' => $range_akhir, 'nama' => $s['nama'], 'id' => $s['id']];
     }
     
-    function getStatsByDateRange($kelas_id, $tgl_awal, $tgl_akhir) {
+    function getStatsByDateRange($kelas_id, $tgl_awal, $tgl_akhir, $semester_id) {
         if (!$tgl_awal || !$tgl_akhir || $kelas_id <= 0) return ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];
         
         $stmt = conn()->prepare("
@@ -56,15 +63,15 @@ function getSemesterDateRange($semester_num, $semester_dates, $tgl_awal, $tgl_ak
                 COUNT(*) as total
             FROM absensi a
             INNER JOIN siswa s ON a.siswa_id = s.id
-            WHERE s.kelas_id = ? AND a.tanggal BETWEEN ? AND ?
+            WHERE s.kelas_id = ? AND a.tanggal BETWEEN ? AND ? AND a.semester_id = ?
         ");
-        $stmt->bind_param("iss", $kelas_id, $tgl_awal, $tgl_akhir);
+        $stmt->bind_param("issi", $kelas_id, $tgl_awal, $tgl_akhir, $semester_id);
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
         return $result ?: ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];
     }
     
-    function getSiswaStatsByDateRange($kelas_id, $tgl_awal, $tgl_akhir) {
+    function getSiswaStatsByDateRange($kelas_id, $tgl_awal, $tgl_akhir, $semester_id) {
         if (!$tgl_awal || !$tgl_akhir || $kelas_id <= 0) return null;
         
         $stmt = conn()->prepare("
@@ -77,12 +84,12 @@ function getSemesterDateRange($semester_num, $semester_dates, $tgl_awal, $tgl_ak
                 COUNT(a.id) as total_absen
             FROM siswa s
             LEFT JOIN absensi a ON s.id = a.siswa_id 
-                AND a.tanggal BETWEEN ? AND ?
+                AND a.tanggal BETWEEN ? AND ? AND a.semester_id = ?
             WHERE s.kelas_id = ? AND (s.status = 'aktif' OR s.status IS NULL)
             GROUP BY s.id, s.nama, s.jenis_kelamin
             ORDER BY (alfa + sakit + izin) ASC, hadir DESC, nama ASC
         ");
-        $stmt->bind_param("ssi", $tgl_awal, $tgl_akhir, $kelas_id);
+        $stmt->bind_param("ssii", $tgl_awal, $tgl_akhir, $semester_id, $kelas_id);
         $stmt->execute();
         return $stmt->get_result();
     }
@@ -95,8 +102,8 @@ function getSemesterDateRange($semester_num, $semester_dates, $tgl_awal, $tgl_ak
     $smt1_range = getSemesterDateRange(1, $semester_dates, $tgl_awal, $tgl_akhir);
     $smt2_range = getSemesterDateRange(2, $semester_dates, $tgl_awal, $tgl_akhir);
     
-    $stats_smt1 = $smt1_range ? getStatsByDateRange($kelas_id, $smt1_range['awal'], $smt1_range['akhir']) : ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];
-    $stats_smt2 = $smt2_range ? getStatsByDateRange($kelas_id, $smt2_range['awal'], $smt2_range['akhir']) : ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];
+    $stats_smt1 = $smt1_range ? getStatsByDateRange($kelas_id, $smt1_range['awal'], $smt1_range['akhir'], $smt1_range['id']) : ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];
+    $stats_smt2 = $smt2_range ? getStatsByDateRange($kelas_id, $smt2_range['awal'], $smt2_range['akhir'], $smt2_range['id']) : ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];
     
     $hari_smt1 = $smt1_range ? (strtotime($smt1_range['akhir']) - strtotime($smt1_range['awal'])) / (60*60*24) + 1 : 0;
     $hari_smt2 = $smt2_range ? (strtotime($smt2_range['akhir']) - strtotime($smt2_range['awal'])) / (60*60*24) + 1 : 0;
@@ -107,8 +114,8 @@ function getSemesterDateRange($semester_num, $semester_dates, $tgl_awal, $tgl_ak
     $kehadiran_smt1 = $total_seharusnya_smt1 > 0 ? round(($stats_smt1['hadir'] / $total_seharusnya_smt1) * 100, 1) : 0;
     $kehadiran_smt2 = $total_seharusnya_smt2 > 0 ? round(($stats_smt2['hadir'] / $total_seharusnya_smt2) * 100, 1) : 0;
     
-    $siswa_smt1 = $smt1_range ? getSiswaStatsByDateRange($kelas_id, $smt1_range['awal'], $smt1_range['akhir']) : null;
-    $siswa_smt2 = $smt2_range ? getSiswaStatsByDateRange($kelas_id, $smt2_range['awal'], $smt2_range['akhir']) : null;
+    $siswa_smt1 = $smt1_range ? getSiswaStatsByDateRange($kelas_id, $smt1_range['awal'], $smt1_range['akhir'], $smt1_range['id']) : null;
+    $siswa_smt2 = $smt2_range ? getSiswaStatsByDateRange($kelas_id, $smt2_range['awal'], $smt2_range['akhir'], $smt2_range['id']) : null;
     } else {
     $total_siswa = 0;
     $stats_smt1 = ['hadir'=>0,'terlambat'=>0,'sakit'=>0,'izin'=>0,'alfa'=>0,'total'=>0];

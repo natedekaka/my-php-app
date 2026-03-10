@@ -37,6 +37,20 @@ try {
         exit;
     }
     
+    $semester = conn()->query("SELECT * FROM semester WHERE id = $semester_id")->fetch_assoc();
+    if (!$semester) {
+        echo json_encode(['success' => false, 'message' => 'Semester tidak ditemukan!']);
+        exit;
+    }
+    
+    $tgl_mulai = $semester['tgl_mulai'];
+    $tgl_selesai = $semester['tgl_selesai'];
+    
+    if ($tanggal < $tgl_mulai || $tanggal > $tgl_selesai) {
+        echo json_encode(['success' => false, 'message' => 'Tanggal ' . date('d M Y', strtotime($tanggal)) . ' tidak sesuai dengan periode semester ' . $semester['nama'] . ' (' . date('d M Y', strtotime($tgl_mulai)) . ' - ' . date('d M Y', strtotime($tgl_selesai)) . ')!']);
+        exit;
+    }
+    
     if (empty($statuses)) {
         echo json_encode(['success' => false, 'message' => 'Tidak ada data absensi untuk disimpan!']);
         exit;
