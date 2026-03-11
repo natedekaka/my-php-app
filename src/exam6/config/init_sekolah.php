@@ -17,11 +17,17 @@ function initKonfigurasiSekolah($conn) {
             logo VARCHAR(255) DEFAULT NULL,
             warna_primer VARCHAR(20) DEFAULT '#667eea',
             warna_sekunder VARCHAR(20) DEFAULT '#764ba2',
+            tampilkan_riwayat ENUM('ya','tidak') DEFAULT 'ya',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         
         $conn->query("INSERT INTO konfigurasi_sekolah (nama_sekolah) VALUES ('SMA Negeri 6 Cimahi')");
+    } else {
+        $col_exists = $conn->query("SHOW COLUMNS FROM konfigurasi_sekolah LIKE 'tampilkan_riwayat'");
+        if ($col_exists->num_rows === 0) {
+            $conn->query("ALTER TABLE konfigurasi_sekolah ADD COLUMN tampilkan_riwayat ENUM('ya','tidak') DEFAULT 'ya'");
+        }
     }
 }
 
@@ -37,11 +43,11 @@ function getKonfigurasiSekolah($conn) {
     return $konfigurasi_cache;
 }
 
-function updateKonfigurasiSekolah($conn, $nama_sekolah, $logo, $warna_primer, $warna_sekunder) {
+function updateKonfigurasiSekolah($conn, $nama_sekolah, $logo, $warna_primer, $warna_sekunder, $tampilkan_riwayat = 'ya') {
     global $konfigurasi_cache;
     
-    $stmt = $conn->prepare("UPDATE konfigurasi_sekolah SET nama_sekolah = ?, logo = ?, warna_primer = ?, warna_sekunder = ? WHERE id = 1");
-    $stmt->bind_param("ssss", $nama_sekolah, $logo, $warna_primer, $warna_sekunder);
+    $stmt = $conn->prepare("UPDATE konfigurasi_sekolah SET nama_sekolah = ?, logo = ?, warna_primer = ?, warna_sekunder = ?, tampilkan_riwayat = ? WHERE id = 1");
+    $stmt->bind_param("sssss", $nama_sekolah, $logo, $warna_primer, $warna_sekunder, $tampilkan_riwayat);
     $result = $stmt->execute();
     $stmt->close();
     

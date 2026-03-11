@@ -707,36 +707,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
 
             <!-- Submit -->
             <div class="text-center mb-5">
-                <button type="button" class="btn btn-primary btn-submit text-white" data-bs-toggle="modal" data-bs-target="#confirmModal">
+                <button type="button" class="btn btn-primary btn-submit text-white" onclick="submitFinal()">
                     <i class="bi bi-send-fill me-2"></i>Kirim Jawaban
                 </button>
             </div>
         </form>
-
-        <!-- Confirmation Modal -->
-        <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content modal-confirm">
-                    <div class="modal-header justify-content-center pt-4">
-                        <div class="confirm-icon">
-                            <i class="bi bi-send-fill"></i>
-                        </div>
-                    </div>
-                    <div class="modal-body text-center text-white">
-                        <h4 class="fw-bold mb-2">Kirim Jawaban?</h4>
-                        <p class="mb-0 opacity-75">Pastikan semua jawaban telah diisi. Jawaban yang sudah dikirim tidak dapat diubah.</p>
-                    </div>
-                    <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">
-                            <i class="bi bi-arrow-left me-1"></i> Periksa Lagi
-                        </button>
-                        <button type="submit" form="formUjian" name="submit_ujian" class="btn btn-confirm-submit">
-                            <i class="bi bi-check-lg me-1"></i> Ya, Kirim!
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Progress Indicator -->
         <div class="progress-indicator" id="progressIndicator">
@@ -746,6 +721,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
             <div class="progress-text">
                 <div class="fw-bold">Soal Terjawab</div>
                 <small class="text-muted" id="progressPercent">0%</small>
+                <small class="d-block" id="autoSaveStatus"></small>
             </div>
         </div>
         
@@ -756,21 +732,245 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
 
     <script src="vendor/bootstrap/bootstrap.bundle.min.js" defer></script>
     <script>
-        // Validasi sebelum submit via modal
-        document.querySelector('.btn-submit').addEventListener('click', function(e) {
+        const API_URL = 'api/submit_jawaban.php';
+        const ID_UJIAN = <?= $id_ujian ?>;
+        let answers = {};
+        let identitySaved = false;
+        
+        function saveIdentity() {
+            const nis = document.querySelector('input[name="nis"]').value.trim();
+            const nama = document.querySelector('input[name="nama"]').value.trim();
+            const kelas = document.querySelector('input[name="kelas"]').value.trim();
+            
+            if (!nis || !nama || !kelas) {
+                return false;
+            }
+            
+            if (!identitySaved) {
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'auto_save',
+                        id_ujian: ID_UJIAN,
+                        nis: nis,
+                        nama: nama,
+                        kelas: kelas,
+                        answers: {}
+                    })
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        identitySaved = true;
+                    }
+                }).catch(console.error);
+            }
+            return true;
+        }
+        
+        function autoSaveAnswer(soalId, answer) {
+            const nis = document.querySelector('input[name="nis"]').value.trim();
+            if (!nis || !identitySaved) return;
+            
+            answers[soalId] = answer;
+            
+            clearTimeout(window.autoSaveTimer);
+            window.autoSaveTimer = setTimeout(() => {
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'auto_save',
+                        id_ujian: ID_UJIAN,
+                        nis: nis,
+                        answers: answers
+                    })
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        document.getElementById('autoSaveStatus').innerHTML = 
+                            '<i class="bi bi-check-circle-fill text-success"></i> Tersimpan';
+                        setTimeout(() => {
+                            document.getElementById('autoSaveStatus').innerHTML = '';
+                        }, 2000);
+                    }
+                }).catch(console.error);
+            }, 2000);
+        }
+        
+        function submitFinal() {
+            const nis = document.querySelector('input[name="nis"]').value.trim();
+            const nama = document.querySelector('input[name="nama"]').value.trim();
+            const kelas = document.querySelector('input[name="kelas"]').value.trim();
+            
+            if (!nis || !nama || !kelas) {
+                alert('Mohon lengkapi identitas terlebih dahulu!');
+                return;
+            }
+            
             const totalSoal = <?= count($soal_list) ?>;
             const answered = new Set();
             
             document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
-                answered.add(radio.name);
+                const soalId = radio.name.replace('jawaban_', '');
+                answers[soalId] = radio.value;
+                answered.add(soalId);
             });
             
             if (answered.size < totalSoal) {
-                e.preventDefault();
                 alert('Mohon jawab semua soal terlebih dahulu!\nSoal terjawab: ' + answered.size + '/' + totalSoal);
-                return false;
+                return;
             }
-        });
+            
+            const btn = document.querySelector('.btn-submit');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Mengirim...';
+            btn.disabled = true;
+            
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    action: 'submit_final',
+                    id_ujian: ID_UJIAN,
+                    nis: nis,
+                    nama: nama,
+                    kelas: kelas,
+                    answers: answers
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccessPage(data.skor, nis, nama, kelas);
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Gagal mengirim jawaban. Silakan coba lagi.');
+                btn.innerHTML = originalText;
+               ;
+            });
+        btn.disabled = false }
+        
+        function showSuccessPage(skor, nis, nama, kelas) {
+            localStorage.setItem('exam_nis', nis);
+            localStorage.setItem('exam_nama', nama);
+            localStorage.setItem('exam_kelas', kelas);
+            
+            document.body.innerHTML = `
+                <!DOCTYPE html>
+                <html lang="id">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Ujian Selesai</title>
+                    <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+                    <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
+                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        * { font-family: 'Poppins', sans-serif; }
+                        body { 
+                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+                            min-height: 100vh; 
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center;
+                        }
+                        .card { 
+                            border: none; 
+                            border-radius: 24px; 
+                            box-shadow: 0 25px 80px rgba(0,0,0,0.25);
+                            animation: slideUp 0.6s ease-out;
+                        }
+                        @keyframes slideUp {
+                            from { opacity: 0; transform: translateY(30px); }
+                            to { opacity: 1; transform: translateY(0); }
+                        }
+                        .success-icon {
+                            width: 120px;
+                            height: 120px;
+                            border-radius: 50%;
+                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin: 0 auto;
+                            animation: scaleIn 0.5s ease-out 0.3s both;
+                            box-shadow: 0 10px 40px rgba(17, 153, 142, 0.4);
+                        }
+                        @keyframes scaleIn {
+                            from { transform: scale(0); }
+                            to { transform: scale(1); }
+                        }
+                        .success-icon i {
+                            font-size: 4rem;
+                            color: white;
+                        }
+                        .skor-box { 
+                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+                            -webkit-background-clip: text; 
+                            -webkit-text-fill-color: transparent; 
+                            font-size: 5rem; 
+                            font-weight: 700; 
+                        }
+                        .info-card {
+                            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                            border-radius: 16px;
+                            padding: 20px;
+                        }
+                        .btn-home {
+                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                            border: none;
+                            padding: 15px 40px;
+                            border-radius: 30px;
+                            font-weight: 600;
+                            color: white;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="row justify-content-center">
+                            <div class="col-md-6">
+                                <div class="card p-5 text-center">
+                                    <div class="success-icon mb-4">
+                                        <i class="bi bi-check-lg"></i>
+                                    </div>
+                                    <h2 class="fw-bold mb-2">Selamat!</h2>
+                                    <p class="text-muted mb-4">Jawaban Anda telah berhasil disubmit</p>
+                                    <div class="my-4">
+                                        <p class="text-muted mb-2 fw-medium">Total Skor Anda</p>
+                                        <div class="skor-box">${skor}</div>
+                                    </div>
+                                    <div class="info-card mb-4">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <p class="mb-2"><strong class="fs-5">${nama}</strong></p>
+                                            </div>
+                                            <div class="col-6 text-start">
+                                                <p class="mb-0 text-muted small">NIS</p>
+                                                <p class="mb-0 fw-semibold">${nis}</p>
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <p class="mb-0 text-muted small">Kelas</p>
+                                                <p class="mb-0 fw-semibold">${kelas}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <a href="index.php" class="btn btn-home">
+                                        <i class="bi bi-house-door me-2"></i>Kembali ke Halaman Utama
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+        }
         
         // Progress indicator
         const radioButtons = document.querySelectorAll('input[type="radio"]');
@@ -783,6 +983,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
             radioButtons.forEach(radio => {
                 if (radio.checked) {
                     answered.add(radio.name);
+                    const soalId = radio.name.replace('jawaban_', '');
+                    autoSaveAnswer(soalId, radio.value);
                 }
             });
             
@@ -793,7 +995,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
             answeredCount.textContent = count;
             progressPercent.textContent = percent + '%';
             
-            // Update circle gradient based on progress
             const circle = document.querySelector('.progress-circle');
             if (percent === 100) {
                 circle.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
@@ -806,6 +1007,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_ujian'])) {
         
         radioButtons.forEach(radio => {
             radio.addEventListener('change', updateProgress);
+        });
+        
+        // Save identity on input change
+        ['nis', 'nama', 'kelas'].forEach(field => {
+            const input = document.querySelector(`input[name="${field}"]`);
+            if (input) {
+                input.addEventListener('change', saveIdentity);
+                input.addEventListener('blur', saveIdentity);
+            }
         });
         
         // Hide progress indicator on mobile

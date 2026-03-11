@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_profil'])) {
     $nama_sekolah = trim($_POST['nama_sekolah']);
     $warna_primer = trim($_POST['warna_primer']);
     $warna_sekunder = trim($_POST['warna_sekunder']);
+    $tampilkan_riwayat = isset($_POST['tampilkan_riwayat']) ? 'ya' : 'tidak';
     $logo = $sekolah['logo'];
     
     if (isset($_FILES['logo']) && $_FILES['logo']['error'] === 0) {
@@ -40,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_profil'])) {
         }
     }
     
-    if (updateKonfigurasiSekolah($conn, $nama_sekolah, $logo, $warna_primer, $warna_sekunder)) {
+    if (updateKonfigurasiSekolah($conn, $nama_sekolah, $logo, $warna_primer, $warna_sekunder, $tampilkan_riwayat)) {
         $message = 'Profil sekolah berhasil diperbarui!';
         $message_type = 'success';
         $sekolah = getKonfigurasiSekolah($conn);
@@ -382,6 +383,15 @@ $sekolah = getKonfigurasiSekolah($conn);
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" name="tampilkan_riwayat" 
+                                       id="tampilkanRiwayat" <?= ($sekolah['tampilkan_riwayat'] ?? 'ya') === 'ya' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-semibold" for="tampilkanRiwayat">
+                                    Tampilkan Fitur Riwayat Nilai
+                                </label>
+                                <div class="text-muted small">Jika dinonaktifkan, siswa tidak dapat melihat riwayat nilai di halaman utama</div>
                             </div>
                             
                             <button type="submit" name="simpan_profil" class="btn btn-primary">

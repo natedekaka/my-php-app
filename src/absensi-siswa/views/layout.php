@@ -1,3 +1,11 @@
+<?php
+require_once __DIR__ . '/../core/init.php';
+require_once __DIR__ . '/../core/Database.php';
+
+initKonfigurasiSekolah(conn());
+$sekolah = getKonfigurasiSekolah(conn());
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -8,13 +16,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="<?= asset('css/style.css') ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: <?= $sekolah['warna_primer'] ?? '#4f46e5' ?>;
+            --secondary-color: <?= $sekolah['warna_sekunder'] ?? '#64748b' ?>;
+        }
+        .navbar-custom {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+        }
+    </style>
 </head>
 <body>
     <?php if (isset($_SESSION['user'])): ?>
     <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="<?= BASE_URL ?>dashboard/">
-                <i class="fas fa-school me-2"></i> Absensi Siswa
+                <?php if ($sekolah['logo'] && file_exists(__DIR__ . '/../assets/uploads/' . $sekolah['logo'])): ?>
+                    <img src="<?= asset('uploads/' . $sekolah['logo']) ?>" alt="Logo" style="height: 30px; width: auto; margin-right: 8px;">
+                <?php else: ?>
+                    <i class="fas fa-school me-2"></i>
+                <?php endif; ?>
+                <span><?= htmlspecialchars($sekolah['nama_sekolah']) ?></span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -32,6 +54,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="<?= BASE_URL ?>absensi/barcode.php">
+                            <i class="fas fa-qrcode me-2"></i>Absensi Barcode
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="<?= BASE_URL ?>siswa/">
                             <i class="fas fa-users me-2"></i>Siswa
                         </a>
@@ -46,6 +73,7 @@
                             <i class="fas fa-cog me-2"></i>Pengaturan
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="<?= BASE_URL ?>profil_sekolah.php"><i class="fas fa-building me-2"></i>Profil Sekolah</a></li>
                             <li><a class="dropdown-item" href="<?= BASE_URL ?>kenaikan/"><i class="fas fa-graduation-cap me-2"></i>Kenaikan Kelas & Kelulusan</a></li>
                             <li><a class="dropdown-item" href="<?= BASE_URL ?>tahun_ajaran/"><i class="fas fa-calendar me-2"></i>Tahun Ajaran</a></li>
                             <li><a class="dropdown-item" href="<?= BASE_URL ?>rekap/kelas.php"><i class="fas fa-chart-bar me-2"></i>Rekap Absensi</a></li>

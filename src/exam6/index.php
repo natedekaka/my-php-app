@@ -272,6 +272,8 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
     </section>
 
     <!-- Riwayat Nilai Section -->
+    <?php $tampilkan_riwayat = $sekolah['tampilkan_riwayat'] ?? 'ya'; ?>
+    <?php if ($tampilkan_riwayat === 'ya'): ?>
     <section class="py-4 bg-light">
         <div class="container">
             <div class="card">
@@ -282,7 +284,7 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
                     <p class="text-muted mb-3">Masukkan NIS Anda untuk melihat riwayat nilai ujian</p>
                     <form method="GET" action="riwayat.php" class="row justify-content-center g-3">
                         <div class="col-md-4">
-                            <input type="text" name="nis" class="form-control form-control-lg" required placeholder="Masukkan NIS">
+                            <input type="text" name="nis" id="nisInput" class="form-control form-control-lg" required placeholder="Masukkan NIS">
                         </div>
                         <div class="col-auto">
                             <button type="submit" class="btn btn-primary btn-lg">
@@ -294,6 +296,14 @@ $ujian_list = $conn->query("SELECT * FROM ujian WHERE status = 'aktif' ORDER BY 
             </div>
         </div>
     </section>
+    <script>
+        // Auto-fill NIS from localStorage if available
+        const savedNis = localStorage.getItem('exam_nis');
+        if (savedNis && document.getElementById('nisInput')) {
+            document.getElementById('nisInput').value = savedNis;
+        }
+    </script>
+    <?php endif; ?>
 
     <!-- Footer -->
     <footer class="footer">

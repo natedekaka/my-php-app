@@ -51,6 +51,29 @@ if (!$detail_jawaban) {
     die("Data jawaban corrupt");
 }
 
+// Fetch original soal data for fallback (for old records without opsi fields)
+$soal_map = [];
+$stmt = $conn->prepare("SELECT id, opsi_a, opsi_b, opsi_c, opsi_d, opsi_e FROM soal WHERE id_ujian = ?");
+$stmt->bind_param("i", $id_ujian);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $soal_map[$row['id']] = $row;
+}
+$stmt->close();
+
+// Merge with original soal data if opsi fields are missing
+foreach ($detail_jawaban as &$jw) {
+    if (empty($jw['opsi_a']) && isset($soal_map[$jw['soal_id']])) {
+        $jw['opsi_a'] = $soal_map[$jw['soal_id']]['opsi_a'] ?? '';
+        $jw['opsi_b'] = $soal_map[$jw['soal_id']]['opsi_b'] ?? '';
+        $jw['opsi_c'] = $soal_map[$jw['soal_id']]['opsi_c'] ?? '';
+        $jw['opsi_d'] = $soal_map[$jw['soal_id']]['opsi_d'] ?? '';
+        $jw['opsi_e'] = $soal_map[$jw['soal_id']]['opsi_e'] ?? '';
+    }
+}
+unset($jw);
+
 $total_benar = 0;
 foreach ($detail_jawaban as $jw) {
     if ($jw['is_correct']) {
@@ -223,11 +246,11 @@ foreach ($detail_jawaban as $jw) {
             <div class="ms-5">
                 <?php 
                 $options = [
-                    'a' => $jw['opsi_a'],
-                    'b' => $jw['opsi_b'],
-                    'c' => $jw['opsi_c'],
-                    'd' => $jw['opsi_d'],
-                    'e' => $jw['opsi_e']
+                    'a' => $jw['opsi_a'] ?? '',
+                    'b' => $jw['opsi_b'] ?? '',
+                    'c' => $jw['opsi_c'] ?? '',
+                    'd' => $jw['opsi_d'] ?? '',
+                    'e' => $jw['opsi_e'] ?? ''
                 ];
                 
                 foreach ($options as $key => $opt): 
