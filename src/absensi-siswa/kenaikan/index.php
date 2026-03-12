@@ -307,6 +307,28 @@ ob_start();
 
     <div class="col-md-6">
         <div class="card-custom">
+            <div class="card-header-custom bg-success">
+                <i class="fas fa-random me-2"></i>2. Redistribusi Kelas 10 → 11
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-random text-success" style="font-size: 3rem;"></i>
+                </div>
+                <p class="text-muted mb-3">
+                    Pindahkan siswa kelas 10 ke kelas 11 (IPA/IPS/Bahasa) dengan mudah.<br>
+                    <strong>Cocok untuk pembagian minat &amp; bakat!</strong>
+                </p>
+                <a href="redistribusi.php" class="btn btn-wa-success btn-action w-100">
+                    <i class="fas fa-random me-2"></i>Buka Redistribusi Kelas
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-md-6">
+        <div class="card-custom">
             <div class="card-header-custom">
                 <i class="fas fa-file-export me-2"></i>2. Export & Import Redistribusi
             </div>
