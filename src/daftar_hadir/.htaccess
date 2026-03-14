@@ -1,0 +1,30 @@
+# Keamanan Dasar
+
+# Mencegah akses langsung ke file PHP yang tidak seharusnya (kecuali simpan.php yang butuh diakses dari frontend)
+<FilesMatch "^(koneksi|security|admin_proses|hapus)\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Mencegah directory listing
+Options -Indexes
+
+# Mencegah akses ke file sensitif
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# PHP Settings
+php_flag display_errors Off
+php_flag log_errors On
+php_value max_execution_time 30
+php_value memory_limit 64M
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
