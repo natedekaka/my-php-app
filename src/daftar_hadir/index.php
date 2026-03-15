@@ -122,6 +122,11 @@
             background: #fafafa;
         }
 
+        .form-control.is-invalid, .form-select.is-invalid {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
         .form-control:focus, .form-select:focus {
             border-color: #667eea;
             box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
@@ -484,7 +489,7 @@ $fields = [];
 $result = $conn->query("SELECT * FROM form_fields WHERE aktif = 'Y' ORDER BY urutan ASC, id ASC");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        $fields[$row['nama_field']] = $row;
+        $fields[] = $row;
     }
 }
 
@@ -507,7 +512,7 @@ $conn->close();
                     <small>Silakan isi data dan tanda tangan di bawah</small>
                 </div>
                 <div class="card-body">
-                    <form id="formAbsensi">
+                    <form id="formAbsensi" novalidate>
                         <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                         <div class="mb-4">
                             <label for="event_id" class="form-label">
@@ -537,7 +542,7 @@ $conn->close();
                             ?>
                             
                             <?php if ($field['tipe'] == 'text'): ?>
-                                <div class="mb-4">
+                                <div class="mb-4 field-item" data-event-id="<?= $field['event_id'] ?? '' ?>">
                                     <label for="<?= $field['nama_field'] ?>" class="form-label">
                                         <i class="fas <?= $icon ?> me-1"></i><?= htmlspecialchars($field['label']) ?>
                                         <?php if($isRequired): ?><span class="text-danger">*</span><?php endif; ?>
@@ -550,7 +555,7 @@ $conn->close();
                                 </div>
                             
                             <?php elseif ($field['tipe'] == 'number'): ?>
-                                <div class="mb-4">
+                                <div class="mb-4 field-item" data-event-id="<?= $field['event_id'] ?? '' ?>">
                                     <label for="<?= $field['nama_field'] ?>" class="form-label">
                                         <i class="fas <?= $icon ?> me-1"></i><?= htmlspecialchars($field['label']) ?>
                                         <?php if($isRequired): ?><span class="text-danger">*</span><?php endif; ?>
@@ -563,7 +568,7 @@ $conn->close();
                                 </div>
                             
                             <?php elseif ($field['tipe'] == 'date'): ?>
-                                <div class="mb-4">
+                                <div class="mb-4 field-item" data-event-id="<?= $field['event_id'] ?? '' ?>">
                                     <label for="<?= $field['nama_field'] ?>" class="form-label">
                                         <i class="fas <?= $icon ?> me-1"></i><?= htmlspecialchars($field['label']) ?>
                                         <?php if($isRequired): ?><span class="text-danger">*</span><?php endif; ?>
@@ -575,7 +580,7 @@ $conn->close();
                                 </div>
                             
                             <?php elseif ($field['tipe'] == 'select'): ?>
-                                <div class="mb-4">
+                                <div class="mb-4 field-item" data-event-id="<?= $field['event_id'] ?? '' ?>">
                                     <label for="<?= $field['nama_field'] ?>" class="form-label">
                                         <i class="fas <?= $icon ?> me-1"></i><?= htmlspecialchars($field['label']) ?>
                                         <?php if($isRequired): ?><span class="text-danger">*</span><?php endif; ?>
@@ -591,7 +596,7 @@ $conn->close();
                                 </div>
                             
                             <?php elseif ($field['tipe'] == 'textarea'): ?>
-                                <div class="mb-4">
+                                <div class="mb-4 field-item" data-event-id="<?= $field['event_id'] ?? '' ?>">
                                     <label for="<?= $field['nama_field'] ?>" class="form-label">
                                         <i class="fas <?= $icon ?> me-1"></i><?= htmlspecialchars($field['label']) ?>
                                         <?php if($isRequired): ?><span class="text-danger">*</span><?php endif; ?>
@@ -600,7 +605,7 @@ $conn->close();
                                 </div>
                             
                             <?php elseif ($field['tipe'] == 'signature'): ?>
-                                <div class="mb-4">
+                                <div class="mb-4 field-item signature-field" data-event-id="<?= $field['event_id'] ?? '' ?>">
                                     <label class="form-label">
                                         <i class="fas fa-signature me-1"></i><?= htmlspecialchars($field['label']) ?>
                                         <?php if($isRequired): ?><span class="text-danger">*</span><?php endif; ?>
@@ -622,6 +627,10 @@ $conn->close();
                                 <span class="btn-text"><i class="fas fa-save me-2"></i>Simpan Kehadiran</span>
                                 <span class="spinner"></span>
                             </button>
+                        </div>
+                        <div id="noFieldsMessage" class="alert alert-info mt-3" style="display: none;">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span>Belum ada form field yang dikonfigurasi untuk acara ini. Silakan hubungi administrator.</span>
                         </div>
                     </form>
                 </div>
@@ -652,10 +661,63 @@ $conn->close();
 let signaturePad = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    const canvas = document.getElementById('signaturePad');
+    // Filter fields based on selected event
+    const eventSelect = document.getElementById('event_id');
+    const fieldItems = document.querySelectorAll('.field-item');
+    const submitBtn = document.getElementById('submitBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const noFieldsMessage = document.getElementById('noFieldsMessage');
+    const signatureCanvas = document.getElementById('signaturePad');
     
-    if (canvas) {
-        signaturePad = new SignaturePad(canvas, {
+    function filterFields() {
+        const selectedEvent = eventSelect.value;
+        let visibleFields = 0;
+        
+        fieldItems.forEach(item => {
+            const fieldEventId = item.dataset.eventId;
+            
+            if (!selectedEvent) {
+                item.style.display = 'none';
+            } else if (!fieldEventId || fieldEventId === selectedEvent) {
+                item.style.display = '';
+                visibleFields++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Resize signature canvas when visible
+        if (signatureCanvas && signaturePad) {
+            setTimeout(() => {
+                if (signatureCanvas.offsetParent !== null) {
+                    signaturePad.clear();
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    const container = signatureCanvas.parentElement;
+                    signatureCanvas.width = container.offsetWidth * ratio;
+                    signatureCanvas.height = 180 * ratio;
+                    signatureCanvas.getContext('2d').scale(ratio, ratio);
+                }
+            }, 100);
+        }
+        
+        if (selectedEvent && visibleFields === 0) {
+            if (noFieldsMessage) noFieldsMessage.style.display = '';
+            if (submitBtn) submitBtn.style.display = 'none';
+            if (clearBtn) clearBtn.style.display = 'none';
+        } else {
+            if (noFieldsMessage) noFieldsMessage.style.display = 'none';
+            if (submitBtn) submitBtn.style.display = '';
+            if (clearBtn) clearBtn.style.display = '';
+        }
+    }
+    
+    if (eventSelect) {
+        eventSelect.addEventListener('change', filterFields);
+        filterFields();
+    }
+    
+    if (signatureCanvas) {
+        signaturePad = new SignaturePad(signatureCanvas, {
             backgroundColor: 'rgba(255, 255, 255, 1)',
             penColor: '#1f2937',
             minWidth: 1.5,
@@ -663,32 +725,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         function resizeCanvas() {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            const container = canvas.parentElement;
-            canvas.width = container.offsetWidth * ratio;
-            canvas.height = 180 * ratio;
-            canvas.getContext('2d').scale(ratio, ratio);
+            if (signatureCanvas.offsetParent !== null) {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                const container = signatureCanvas.parentElement;
+                signatureCanvas.width = container.offsetWidth * ratio;
+                signatureCanvas.height = 180 * ratio;
+                signatureCanvas.getContext('2d').scale(ratio, ratio);
+            }
         }
 
-        resizeCanvas();
+        setTimeout(resizeCanvas, 100);
         window.addEventListener('resize', resizeCanvas);
 
-        document.getElementById('clearBtn').addEventListener('click', function() {
-            signaturePad.clear();
-            document.getElementById('signatureData').value = '';
-            showToast('Tanda tangan dihapus', 'info');
-        });
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                signaturePad.clear();
+                const sigDataInput = document.getElementById('signatureData');
+                if (sigDataInput) sigDataInput.value = '';
+                showToast('Tanda tangan dihapus', 'info');
+            });
+        }
     } else {
-        document.getElementById('clearBtn').style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
     }
 
     // AJAX Form Submit
     const formAbsensi = document.getElementById('formAbsensi');
-    const signatureCanvas = document.getElementById('signaturePad');
     
     if (formAbsensi) {
         formAbsensi.addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            // Manual validation for visible fields only
+            const visibleItems = formAbsensi.querySelectorAll('.field-item');
+            let isValid = true;
+            
+            visibleItems.forEach(function(item) {
+                if (item.style.display !== 'none') {
+                    const requiredInput = item.querySelector('[required]');
+                    if (requiredInput && !requiredInput.value.trim()) {
+                        isValid = false;
+                        requiredInput.classList.add('is-invalid');
+                    } else if (requiredInput) {
+                        requiredInput.classList.remove('is-invalid');
+                    }
+                }
+            });
+
+            if (!isValid) {
+                showToast('Mohon lengkapi semua field yang wajib diisi!', 'error');
+                return;
+            }
 
             const submitBtn = document.getElementById('submitBtn');
             const signatureDataInput = document.getElementById('signatureData');

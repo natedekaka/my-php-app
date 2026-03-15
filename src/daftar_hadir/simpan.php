@@ -55,8 +55,8 @@ $saveDir = $canWrite ? $uploadDir : sys_get_temp_dir();
 $file = time() . '_sign.png';
 $path = $saveDir . '/' . $file;
 
-// Store relative path (uploads/filename) in DB
-$dbFilename = 'uploads/' . $file;
+// Store correct relative path in DB based on where file is saved
+$dbFilename = $canWrite ? 'uploads/' . $file : $path;
 
 if (@file_put_contents($path, $decoded) === false) {
     echo json_encode(['status' => 'gagal', 'message' => 'Cannot write file']);

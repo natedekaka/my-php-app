@@ -7,6 +7,14 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     header('Location: login.php');
     exit;
 }
+
+$events = [];
+$resultEvents = $conn->query("SELECT * FROM events WHERE aktif = 'Y' ORDER BY nama_event");
+if ($resultEvents) {
+    while ($row = $resultEvents->fetch_assoc()) {
+        $events[] = $row;
+    }
+}
 ?>
 <html lang="id">
 <head>
@@ -126,6 +134,16 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
                                         <input type="hidden" name="aksi" value="simpan_field">
                                         <input type="hidden" name="id" id="field_id">
                                         <div class="mb-3">
+                                            <label class="form-label">Pilih Acara</label>
+                                            <select class="form-select" name="event_id" id="event_id_field" required>
+                                                <option value="">Pilih acara...</option>
+                                                <?php foreach ($events as $evt): ?>
+                                                    <option value="<?= $evt['id'] ?>"><?= htmlspecialchars($evt['nama_event']) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <small class="text-muted">Field ini akan ditampilkan hanya untuk acara yang dipilih</small>
+                                        </div>
+                                        <div class="mb-3">
                                             <label class="form-label">Nama Field</label>
                                             <input type="text" class="form-control" name="nama_field" id="nama_field" placeholder="contoh: nama_lengkap" required>
                                             <small class="text-muted">Tanpa spasi, gunakan underscore</small>
@@ -175,25 +193,35 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
                             </div>
                         </div>
                         <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">Filter berdasarkan Acara</label>
+                                <select class="form-select" id="filter_event" onchange="filterTableByEvent()">
+                                    <option value="">Semua Acara</option>
+                                    <?php foreach ($events as $evt): ?>
+                                        <option value="<?= $evt['id'] ?>"><?= htmlspecialchars($evt['nama_event']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover">
                                     <thead class="table-light">
-                                        <tr><th>Urutan</th><th>Nama Field</th><th>Label</th><th>Tipe</th><th>Wajib</th><th>Status</th><th>Aksi</th></tr>
+                                        <tr><th>Urutan</th><th>Nama Field</th><th>Label</th><th>Tipe</th><th>Wajib</th><th>Acara</th><th>Status</th><th>Aksi</th></tr>
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $result = $conn->query("SELECT * FROM form_fields ORDER BY urutan ASC, id ASC");
+                                        $result = $conn->query("SELECT f.*, e.nama_event FROM form_fields f LEFT JOIN events e ON f.event_id = e.id ORDER BY f.urutan ASC, f.id ASC");
                                         while ($row = $result->fetch_assoc()):
                                         ?>
-                                        <tr>
+                                        <tr data-event-id="<?= $row['event_id'] ?? '' ?>">
                                             <td><?= $row['urutan'] ?></td>
                                             <td><code><?= htmlspecialchars($row['nama_field']) ?></code></td>
                                             <td><?= htmlspecialchars($row['label']) ?></td>
                                             <td><?= htmlspecialchars($row['tipe']) ?></td>
                                             <td><?= $row['wajib'] == 'Y' ? '<span class="badge bg-danger">Ya</span>' : '-' ?></td>
+                                            <td><?= $row['event_id'] ? '<span class="badge bg-info">' . htmlspecialchars($row['nama_event']) . '</span>' : '<span class="badge bg-warning">Belum dipilih</span>' ?></td>
                                             <td><?= $row['aktif'] == 'Y' ? '<span class="badge bg-success">Aktif</span>' : '<span class="badge bg-secondary">Nonaktif</span>' ?></td>
                                             <td>
-                                                <button class="btn btn-sm btn-warning" onclick="editField(<?= $row['id'] ?>, '<?= $row['nama_field'] ?>', '<?= $row['label'] ?>', '<?= $row['tipe'] ?>', '<?= $row['placeholder'] ?? '' ?>', '<?= $row['urutan'] ?>', '<?= $row['wajib'] ?>', '<?= $row['aktif'] ?>')"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-sm btn-warning" onclick="editField(<?= $row['id'] ?>, '<?= $row['nama_field'] ?>', '<?= $row['label'] ?>', '<?= $row['tipe'] ?>', '<?= $row['placeholder'] ?? '' ?>', '<?= $row['urutan'] ?>', '<?= $row['wajib'] ?>', '<?= $row['aktif'] ?>', '<?= $row['event_id'] ?? '' ?>')"><i class="fas fa-edit"></i></button>
                                                 <a href="admin_proses.php?aksi=hapus_field&id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus?')"><i class="fas fa-trash"></i></a>
                                             </td>
                                         </tr>
@@ -222,7 +250,7 @@ function resetEventForm() {
     document.getElementById('nama_event').value = '';
     document.getElementById('deskripsi').value = '';
 }
-function editField(id, nama, label, tipe, placeholder, urutan, wajib, aktif) {
+function editField(id, nama, label, tipe, placeholder, urutan, wajib, aktif, eventId) {
     document.getElementById('field_id').value = id;
     document.getElementById('nama_field').value = nama;
     document.getElementById('label').value = label;
@@ -231,15 +259,30 @@ function editField(id, nama, label, tipe, placeholder, urutan, wajib, aktif) {
     document.getElementById('urutan').value = urutan;
     document.getElementById('wajib').checked = (wajib == 'Y');
     document.querySelector('select[name="aktif"]:last-of-type').value = aktif;
+    document.getElementById('event_id_field').value = eventId || '';
 }
 function resetFieldForm() {
     document.getElementById('field_id').value = '';
+    document.getElementById('event_id_field').value = '';
     document.getElementById('nama_field').value = '';
     document.getElementById('label').value = '';
     document.getElementById('tipe').value = 'text';
     document.getElementById('placeholder').value = '';
     document.getElementById('urutan').value = '0';
     document.getElementById('wajib').checked = false;
+}
+function filterTableByEvent() {
+    const filterEvent = document.getElementById('filter_event').value;
+    const rows = document.querySelectorAll('#fields tbody tr');
+    
+    rows.forEach(row => {
+        const rowEventId = row.dataset.eventId;
+        if (!filterEvent || rowEventId === filterEvent) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 </script>
 </body>

@@ -37,19 +37,25 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 <body>
 
 <?php
-// Ambil semua field aktif untuk header tabel
+// Ambil filter event jika ada
+$filter_event = $_GET['filter_event'] ?? '';
+$filter_tgl_awal = $_GET['filter_tgl_awal'] ?? '';
+$filter_tgl_akhir = $_GET['filter_tgl_akhir'] ?? '';
+
+// Ambil semua field aktif untuk header tabel (filter berdasarkan event jika dipilih)
 $fields = [];
-$resultFields = $conn->query("SELECT * FROM form_fields WHERE aktif = 'Y' AND tipe != 'signature' ORDER BY urutan ASC, id ASC");
+$fieldsQuery = "SELECT * FROM form_fields WHERE aktif = 'Y' AND tipe != 'signature'";
+if (!empty($filter_event)) {
+    $fieldsQuery .= " AND (event_id IS NULL OR event_id = '" . (int)$filter_event . "')";
+}
+$fieldsQuery .= " ORDER BY urutan ASC, id ASC";
+
+$resultFields = $conn->query($fieldsQuery);
 if ($resultFields) {
     while ($row = $resultFields->fetch_assoc()) {
         $fields[] = $row;
     }
 }
-
-// Ambil filter event jika ada
-$filter_event = $_GET['filter_event'] ?? '';
-$filter_tgl_awal = $_GET['filter_tgl_awal'] ?? '';
-$filter_tgl_akhir = $_GET['filter_tgl_akhir'] ?? '';
 
 // Build query
 $whereClause = [];
@@ -208,7 +214,7 @@ if ($resultEvents) {
                                 ?>
                             </td>
                             <td class="text-center">
-                                <a href="hapus.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus data ini?')" title="Hapus"><i class="fas fa-trash"></i></a>
+                                <a href="admin_proses.php?aksi=hapus_presensi&id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus data ini?')" title="Hapus"><i class="fas fa-trash"></i></a>
                             </td>
                         </tr>
                         <?php 

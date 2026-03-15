@@ -7,17 +7,32 @@
 include 'koneksi.php';
 include 'security.php';
 
+$filter_event = $_GET['filter_event'] ?? '';
+$filter_tgl_awal = $_GET['filter_tgl_awal'] ?? '';
+$filter_tgl_akhir = $_GET['filter_tgl_akhir'] ?? '';
+
 $fields = [];
-$resultFields = $conn->query("SELECT * FROM form_fields WHERE aktif = 'Y' AND tipe != 'signature' ORDER BY urutan ASC, id ASC");
+$fieldsQuery = "SELECT * FROM form_fields WHERE aktif = 'Y' AND tipe != 'signature'";
+if (!empty($filter_event)) {
+    $fieldsQuery .= " AND (event_id IS NULL OR event_id = '" . (int)$filter_event . "')";
+}
+$fieldsQuery .= " ORDER BY urutan ASC, id ASC";
+
+$resultFields = $conn->query($fieldsQuery);
 if ($resultFields) {
     while ($row = $resultFields->fetch_assoc()) {
         $fields[] = $row;
     }
 }
 
-$filter_event = $_GET['filter_event'] ?? '';
-$filter_tgl_awal = $_GET['filter_tgl_awal'] ?? '';
-$filter_tgl_akhir = $_GET['filter_tgl_akhir'] ?? '';
+$allFields = [];
+$allFieldsQuery = "SELECT * FROM form_fields WHERE aktif = 'Y' AND tipe != 'signature' ORDER BY urutan ASC, id ASC";
+$resultAllFields = $conn->query($allFieldsQuery);
+if ($resultAllFields) {
+    while ($row = $resultAllFields->fetch_assoc()) {
+        $allFields[] = $row;
+    }
+}
 
 $whereClause = [];
 $params = [];
@@ -59,6 +74,18 @@ if ($resultEvents) {
     while ($row = $resultEvents->fetch_assoc()) {
         $events[] = $row;
     }
+}
+
+$eventFields = [];
+$eventFieldsQuery = "SELECT COALESCE(event_id, 0) as evt_id, GROUP_CONCAT(nama_field ORDER BY urutan ASC, id ASC) as fields FROM form_fields WHERE aktif = 'Y' AND tipe != 'signature' GROUP BY COALESCE(event_id, 0)";
+$resultEventFields = $conn->query($eventFieldsQuery);
+if ($resultEventFields) {
+    while ($row = $resultEventFields->fetch_assoc()) {
+        $eventFields[$row['evt_id']] = explode(',', $row['fields']);
+    }
+}
+if (!isset($eventFields[0])) {
+    $eventFields[0] = [];
 }
 ?>
 <!DOCTYPE html>
@@ -140,7 +167,7 @@ if ($resultEvents) {
                             <th class="text-center">No</th>
                             <th>Waktu</th>
                             <th>Acara</th>
-                            <?php foreach ($fields as $field): ?>
+                            <?php foreach ($allFields as $field): ?>
                                 <th><?= e($field['label']) ?></th>
                             <?php endforeach; ?>
                             <th class="text-center">Tanda Tangan</th>
@@ -152,37 +179,51 @@ if ($resultEvents) {
                         if ($result && $result->num_rows > 0):
                             while ($row = $result->fetch_assoc()):
                                 $data = json_decode($row['data_json'], true);
+                                $eventId = $row['event_id'] ?? 0;
+                                $rowFields = $eventFields[$eventId] ?? $eventFields[0] ?? [];
                         ?>
                         <tr>
                             <td class="text-center"><?= $no++ ?></td>
                             <td><?= date('d/m/Y H:i', strtotime($row['waktu'])) ?></td>
                             <td><?= e($row['nama_event']) ?></td>
-                            <?php foreach ($fields as $field): ?>
-                                <td><?= e($data[$field['nama_field']] ?? '-') ?></td>
+                            <?php foreach ($allFields as $field): ?>
+                                <?php if (in_array($field['nama_field'], $rowFields)): ?>
+                                    <td><?= e($data[$field['nama_field']] ?? '-') ?></td>
+                                <?php else: ?>
+                                    <td class="text-muted">-</td>
+                                <?php endif; ?>
                             <?php endforeach; ?>
                             <td class="text-center">
                                 <?php 
                                 $ttdFile = $row['ttd_file'] ?? '';
+                                $imgSrc = '';
+                                
                                 if ($ttdFile) {
-                                    // Check if file exists - try multiple paths
-                                    $exists = false;
-                                    $imgSrc = '';
+                                    // Try various path formats stored in DB
+                                    $filename = basename($ttdFile);
+                                    $possibleImgSrc = [
+                                        $ttdFile,
+                                        'uploads/' . $filename,
+                                        $filename
+                                    ];
                                     
-                                    // Try direct path from DB (e.g., "uploads/filename.png")
-                                    if (file_exists(__DIR__ . '/' . $ttdFile)) {
-                                        $imgSrc = $ttdFile;
-                                        $exists = true;
-                                    } 
-                                    // Try just filename in uploads folder
-                                    elseif (file_exists(__DIR__ . '/uploads/' . basename($ttdFile))) {
-                                        $imgSrc = 'uploads/' . basename($ttdFile);
-                                        $exists = true;
+                                    foreach ($possibleImgSrc as $src) {
+                                        $path = __DIR__ . '/' . $src;
+                                        if (file_exists($path)) {
+                                            $imgSrc = $src;
+                                            break;
+                                        }
                                     }
                                     
-                                    if ($exists) {
-                                        echo '<img src="' . e($imgSrc) . '" alt="TTD" class="ttd-thumbnail" data-bs-toggle="modal" data-bs-target="#ttdModal" onclick="showTTD(this.src)">';
+                                    // Also try absolute path (for temp files)
+                                    if (!$imgSrc && file_exists($ttdFile)) {
+                                        $imgSrc = $ttdFile;
+                                    }
+                                    
+                                    if ($imgSrc) {
+                                        echo '<img src="' . e($imgSrc) . '" alt="TTD" class="ttd-thumbnail" style="width:60px;height:30px;object-fit:contain;border:1px solid #ddd;border-radius:4px;" data-bs-toggle="modal" data-bs-target="#ttdModal" onclick="showTTD(this.src)">';
                                     } else {
-                                        echo '<span class="text-muted">-</span>';
+                                        echo '<span class="text-danger" title="File: ' . e($ttdFile) . '">⚠️</span>';
                                     }
                                 } else {
                                     echo '<span class="text-muted">-</span>';
@@ -192,7 +233,7 @@ if ($resultEvents) {
                         </tr>
                         <?php endwhile; else: ?>
                         <tr>
-                            <td colspan="<?= 4 + count($fields) ?>" class="text-center text-muted py-4">
+                            <td colspan="<?= 5 + count($allFields) ?>" class="text-center text-muted py-4">
                                 <i class="fas fa-inbox fa-2x mb-2"></i><br>Belum ada data kehadiran
                             </td>
                         </tr>

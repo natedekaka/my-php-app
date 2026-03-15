@@ -38,8 +38,10 @@ CREATE TABLE form_fields (
     tipe ENUM('text', 'number', 'date', 'select', 'textarea', 'signature') DEFAULT 'text',
     placeholder VARCHAR(255),
     wajib ENUM('Y', 'N') DEFAULT 'N',
-   urutan INT DEFAULT 0,
-    aktif ENUM('Y', 'N') DEFAULT 'Y'
+    urutan INT DEFAULT 0,
+    aktif ENUM('Y', 'N') DEFAULT 'Y',
+    event_id INT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insert default fields

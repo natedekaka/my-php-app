@@ -56,49 +56,68 @@ elseif ($aksi == 'hapus_event') {
 
 elseif ($aksi == 'simpan_field') {
     $id = $_POST['id'] ?? '';
-    $nama_field = trim($_POST['nama_field']);
+    $nama_field_raw = trim($_POST['nama_field']);
+    $nama_field = strtolower($nama_field_raw);
+    $nama_field = preg_replace('/[^a-z0-9_]/', '_', $nama_field);
+    $nama_field = preg_replace('/_+/', '_', $nama_field);
+    $nama_field = trim($nama_field, '_');
     $label = trim($_POST['label']);
     $tipe = $_POST['tipe'] ?? 'text';
     $placeholder = trim($_POST['placeholder'] ?? '');
     $urutan = (int)($_POST['urutan'] ?? 0);
     $wajib = $_POST['wajib'] ?? 'N';
     $aktif = $_POST['aktif'] ?? 'Y';
+    $event_id = !empty($_POST['event_id']) ? (int)$_POST['event_id'] : null;
     
     if (empty($nama_field) || empty($label)) {
         header('Location: admin.php?status=gagal&msg=field_kosong&tab=fields');
         exit;
     }
     
-    // Validasi nama_field (hanya alphanumeric dan underscore)
-    if (!preg_match('/^[a-zA-Z0-9_]+$/', $nama_field)) {
+    if (empty($nama_field) || !preg_match('/^[a-z][a-z0-9_]*$/', $nama_field)) {
         header('Location: admin.php?status=gagal&msg=nama_field_invalid&tab=fields');
         exit;
     }
     
-    if ($id) {
-        $stmt = $conn->prepare("UPDATE form_fields SET nama_field = ?, label = ?, tipe = ?, placeholder = ?, urutan = ?, wajib = ?, aktif = ? WHERE id = ?");
-        $stmt->bind_param("ssssissi", $nama_field, $label, $tipe, $placeholder, $urutan, $wajib, $aktif, $id);
-    } else {
-        // Cek duplikat
-        $check = $conn->prepare("SELECT id FROM form_fields WHERE nama_field = ?");
-        $check->bind_param("s", $nama_field);
-        $check->execute();
-        if ($check->get_result()->num_rows > 0) {
-            header('Location: admin.php?status=gagal&msg=field_duplikat&tab=fields');
+    $nama_field_esc = $conn->real_escape_string($nama_field);
+    $label_esc = $conn->real_escape_string($label);
+    $tipe_esc = $conn->real_escape_string($tipe);
+    $placeholder_esc = $conn->real_escape_string($placeholder);
+    $wajib_esc = $conn->real_escape_string($wajib);
+    $aktif_esc = $conn->real_escape_string($aktif);
+    
+    $event_check = $event_id !== null ? " AND event_id = $event_id" : " AND event_id IS NULL";
+    
+    if (!$id) {
+        $check_sql = "SELECT id FROM form_fields WHERE nama_field = '$nama_field_esc' $event_check";
+        $check_result = @$conn->query($check_sql);
+        if ($check_result && $check_result->num_rows > 0) {
+            header('Location: admin.php?status=gagal&msg=nama_field_sudah_ada&tab=fields');
             exit;
         }
-        $check->close();
-        
-        $stmt = $conn->prepare("INSERT INTO form_fields (nama_field, label, tipe, placeholder, urutan, wajib, aktif) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssiss", $nama_field, $label, $tipe, $placeholder, $urutan, $wajib, $aktif);
     }
     
-    if ($stmt->execute()) {
+    if ($id) {
+        $id_esc = (int)$id;
+        if ($event_id !== null) {
+            $sql = "UPDATE form_fields SET nama_field = '$nama_field_esc', label = '$label_esc', tipe = '$tipe_esc', placeholder = '$placeholder_esc', urutan = $urutan, wajib = '$wajib_esc', aktif = '$aktif_esc', event_id = $event_id WHERE id = $id_esc";
+        } else {
+            $sql = "UPDATE form_fields SET nama_field = '$nama_field_esc', label = '$label_esc', tipe = '$tipe_esc', placeholder = '$placeholder_esc', urutan = $urutan, wajib = '$wajib_esc', aktif = '$aktif_esc', event_id = NULL WHERE id = $id_esc";
+        }
+    } else {
+        if ($event_id !== null) {
+            $sql = "INSERT INTO form_fields (nama_field, label, tipe, placeholder, urutan, wajib, aktif, event_id) VALUES ('$nama_field_esc', '$label_esc', '$tipe_esc', '$placeholder_esc', $urutan, '$wajib_esc', '$aktif_esc', $event_id)";
+        } else {
+            $sql = "INSERT INTO form_fields (nama_field, label, tipe, placeholder, urutan, wajib, aktif, event_id) VALUES ('$nama_field_esc', '$label_esc', '$tipe_esc', '$placeholder_esc', $urutan, '$wajib_esc', '$aktif_esc', NULL)";
+        }
+    }
+    
+    $result = @$conn->query($sql);
+    if ($result) {
         header('Location: admin.php?status=sukses&tab=fields');
     } else {
-        header('Location: admin.php?status=gagal&msg=' . urlencode($stmt->error) . '&tab=fields');
+        header('Location: admin.php?status=gagal&msg=' . urlencode($conn->error) . '&tab=fields');
     }
-    $stmt->close();
 }
 
 elseif ($aksi == 'hapus_field') {
@@ -111,6 +130,42 @@ elseif ($aksi == 'hapus_field') {
         header('Location: admin.php?status=gagal&msg=' . urlencode($stmt->error));
     }
     $stmt->close();
+}
+
+elseif ($aksi == 'hapus_presensi') {
+    $id = (int)($_GET['id'] ?? 0);
+    
+    if ($id > 0) {
+        $stmt = $conn->prepare("SELECT ttd_file FROM presensi WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($row = $result->fetch_assoc()) {
+            $ttdFile = $row['ttd_file'];
+            
+            $stmt2 = $conn->prepare("DELETE FROM presensi WHERE id = ?");
+            $stmt2->bind_param("i", $id);
+            $stmt2->execute();
+            $stmt2->close();
+            
+            if ($ttdFile) {
+                $paths = [
+                    __DIR__ . '/' . $ttdFile,
+                    __DIR__ . '/uploads/' . basename($ttdFile)
+                ];
+                foreach ($paths as $path) {
+                    if (file_exists($path)) {
+                        @unlink($path);
+                    }
+                }
+            }
+        }
+        $stmt->close();
+    }
+    
+    header('Location: rekap_admin.php?status=hapus_ok');
+    exit;
 }
 
 else {

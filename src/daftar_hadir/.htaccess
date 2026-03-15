@@ -1,7 +1,7 @@
 # Keamanan Dasar
 
 # Mencegah akses langsung ke file PHP yang tidak seharusnya (kecuali simpan.php yang butuh diakses dari frontend)
-<FilesMatch "^(koneksi|security|admin_proses|hapus)\.php$">
+<FilesMatch "^(koneksi|security|hapus)\.php$">
     Order Deny,Allow
     Deny from all
 </FilesMatch>
