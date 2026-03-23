@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  ecard-web:
+    image: php:8.2-apache
+    container_name: ecard-lebaran-web
+    ports:
+      - "8092:80"
+    volumes:
+      - ./src/kartu-lebaran:/var/www/html:z
+    environment:
+      - DB_HOST=ecard-lebaran-db
+      - DB_NAME=kartu_lebaran_db
+      - DB_USER=ecard_user
+      - DB_PASS=ecard_pass_2024
+    depends_on:
+      - ecard-db
+    networks:
+      - ecard-net
+    restart: unless-stopped
+    command: >
+      bash -c "apt-get update && apt-get install -y libgd-dev libjpeg-dev libpng-dev libfreetype6-dev && 
+             docker-php-ext-configure gd --with-jpeg --with-freetype &&
+             docker-php-ext-install pdo pdo_mysql gd &&
+             a2enmod rewrite &&
+             chown -R www-data:www-data /var/www/html/assets/generated &&
+             chmod -R 777 /var/www/html/assets/generated &&
+             apache2-foreground"
+
+  ecard-db:
+    image: docker.io/library/mariadb:10.11
+    container_name: ecard-lebaran-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ecard_root_pass
+      MYSQL_DATABASE: kartu_lebaran_db
+      MYSQL_USER: ecard_user
+      MYSQL_PASSWORD: ecard_pass_2024
+    ports:
+      - "3311:3306"
+    volumes:
+      - ./src/kartu-lebaran/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ecard-dbdata:/var/lib/mysql
+    networks:
+      - ecard-net
+    restart: unless-stopped
+
+  phpmyadmin-ecard:
+    image: docker.io/library/phpmyadmin:latest
+    container_name: ecard-lebaran-pma
+    ports:
+      - "8093:80"
+    environment:
+      PMA_HOST: ecard-lebaran-db
+      PMA_USER: root
+      PMA_PASSWORD: ecard_root_pass
+    depends_on:
+      - ecard-db
+    networks:
+      - ecard-net
+    restart: unless-stopped
+
+volumes:
+  ecard-dbdata:
+
+networks:
+  ecard-net:
+    driver: bridge
