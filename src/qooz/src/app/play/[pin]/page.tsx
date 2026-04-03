@@ -139,8 +139,10 @@ export default function PlayerGamePage() {
       }
     }
 
-    // Poll every 1 second
-    const interval = setInterval(pollState, 1000)
+    const pollInterval = parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '2000')
+    
+    // Poll every 2 seconds (configurable via env)
+    const interval = setInterval(pollState, pollInterval)
     return () => clearInterval(interval)
   }, [currentQuestion, gamePhase])
 

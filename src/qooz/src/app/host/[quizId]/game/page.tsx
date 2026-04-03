@@ -86,8 +86,9 @@ export default function GameHostPage() {
     if (sessionId) {
       fetchGameState()
       
-      // Poll every 1 second for updates
-      const interval = setInterval(fetchGameState, 1000)
+      const pollInterval = parseInt(process.env.NEXT_PUBLIC_POLL_INTERVAL || '2000')
+      // Poll every 2 seconds (configurable via env)
+      const interval = setInterval(fetchGameState, pollInterval)
       return () => clearInterval(interval)
     } else {
       setIsLoading(false)

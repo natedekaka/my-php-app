@@ -1,32 +1,42 @@
 <?php
 require_once __DIR__ . '/../init.php';
 
+// Simple in-memory cache for game state (per-process)
+$gameStateCache = [];
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
 // Get shared game state for polling
 if ($method === 'GET' && $action === 'state') {
     $sessionId = $_GET['session_id'] ?? '';
+    $cacheKey = $sessionId;
+    $cacheTime = 1; // Cache for 1 second
     
     if (!$sessionId) {
         response(['error' => 'Session ID required'], 400);
     }
     
-    // Get session
-    $result = conn()->query("SELECT * FROM game_sessions WHERE id = '$sessionId'");
-    $session = $result->fetch_assoc();
+    // Check cache first
+    if (isset($gameStateCache[$cacheKey]) && (time() - $gameStateCache[$cacheKey]['cached_at']) < $cacheTime) {
+        response($gameStateCache[$cacheKey]['data']);
+    }
     
+    // Get session - only essential fields
+    $result = conn()->query("SELECT id, pin, quiz_id, status, question_index, current_question_id, started_at, ended_at FROM game_sessions WHERE id = '$sessionId'");
+    $session = $result->fetch_assoc();
+
     if (!$session) {
         response(['error' => 'Session not found'], 404);
     }
-    
-    // Get players
-    $playersResult = conn()->query("SELECT * FROM players WHERE session_id = '$sessionId' ORDER BY skor_total DESC");
+
+    // Get players - optimized query
+    $playersResult = conn()->query("SELECT id, nama_siswa, skor_total, is_active FROM players WHERE session_id = '$sessionId' ORDER BY skor_total DESC");
     $players = [];
     while ($row = $playersResult->fetch_assoc()) {
         $players[] = $row;
     }
-    
+
     // Get current question if playing
     $question = null;
     if ($session['current_question_id']) {
@@ -37,19 +47,27 @@ if ($method === 'GET' && $action === 'state') {
     // Get answers for current question
     $answers = [];
     if ($session['current_question_id']) {
-        $aResult = conn()->query("SELECT * FROM answers WHERE session_id = '$sessionId' AND question_id = '{$session['current_question_id']}'");
+        $aResult = conn()->query("SELECT player_id, jawaban_dipilih, is_correct, poin_didapat FROM answers WHERE session_id = '$sessionId' AND question_id = '{$session['current_question_id']}'");
         while ($row = $aResult->fetch_assoc()) {
             $answers[] = $row;
         }
     }
     
-    response([
+    $responseData = [
         'session' => $session,
         'players' => $players,
         'question' => $question,
         'answers' => $answers,
         'timestamp' => time()
-    ]);
+    ];
+    
+    // Cache the response
+    $gameStateCache[$cacheKey] = [
+        'data' => $responseData,
+        'cached_at' => time()
+    ];
+    
+    response($responseData);
 }
 
 // Get session by PIN (for player join)
